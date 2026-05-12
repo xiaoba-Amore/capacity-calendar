@@ -1,0 +1,3886 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>产能调度日历</title>
+  <style>
+    :root {
+      --color-bg:           #f0f2f5;
+      --color-surface:      #ffffff;
+      --color-surface-2:    #f8fafc;
+      --color-border:       #e2e8f0;
+      --color-border-light: #f1f5f9;
+      --color-primary:      #4f6ef7;
+      --color-primary-light:#eef1ff;
+      --color-primary-dark: #3a55d4;
+      --color-text-primary: #1e293b;
+      --color-text-secondary:#64748b;
+      --color-text-muted:   #94a3b8;
+      --color-junior:       #10b981;
+      --color-junior-bg:    #ecfdf5;
+      --color-senior:       #f59e0b;
+      --color-senior-bg:    #fef3c7;
+      --radius-sm: 4px;
+      --radius-md: 8px;
+      --radius-lg: 12px;
+      --shadow-sm: 0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
+      --shadow-md: 0 4px 12px rgba(0,0,0,.08);
+      --shadow-lg: 0 8px 24px rgba(0,0,0,.12);
+      --font: 'PingFang SC','Microsoft YaHei',system-ui,sans-serif;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: var(--font); background: var(--color-bg); color: var(--color-text-primary); min-height: 100vh; }
+
+    /* ===== 顶部导航 ===== */
+    .topbar {
+      background: var(--color-surface);
+      border-bottom: 1px solid var(--color-border);
+      padding: 0 24px;
+      height: 56px;
+      display: flex; align-items: center; justify-content: space-between;
+      position: sticky; top: 0; z-index: 100;
+      box-shadow: var(--shadow-sm);
+    }
+    .topbar-left { display: flex; align-items: center; gap: 16px; }
+    .topbar-logo {
+      display: flex; align-items: center; gap: 8px;
+      font-weight: 600; font-size: 16px; color: var(--color-text-primary);
+    }
+    .topbar-logo-icon {
+      width: 28px; height: 28px;
+      background: var(--color-primary);
+      border-radius: var(--radius-md);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .topbar-title {
+      font-size: 14px; color: var(--color-text-secondary); font-weight: 400;
+      padding-left: 16px; border-left: 1px solid var(--color-border);
+    }
+    .topbar-actions { display: flex; align-items: center; gap: 10px; }
+    .btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 8px 16px; border-radius: var(--radius-md);
+      font-size: 13px; font-weight: 500; cursor: pointer; border: none;
+      transition: all .15s; white-space: nowrap;
+    }
+    .btn:hover { transform: translateY(-1px); }
+    .btn-ghost { background: transparent; color: var(--color-text-secondary); border: 1px solid var(--color-border); }
+    .btn-ghost:hover { background: var(--color-surface-2); }
+    .btn-primary { background: var(--color-primary); color: #fff; }
+    .btn-primary:hover { background: var(--color-primary-dark); }
+
+    /* ===== 主容器 ===== */
+    .main { padding: 20px 24px; max-width: 1600px; margin: 0 auto; }
+
+    /* ===== 统计卡片 ===== */
+    .stats-row {
+      display: grid; grid-template-columns: repeat(4, 1fr);
+      gap: 16px; margin-bottom: 16px;
+    }
+    .stat-card {
+      background: var(--color-surface); border: 1px solid var(--color-border);
+      border-radius: var(--radius-lg); padding: 16px 20px;
+      box-shadow: var(--shadow-sm); display: flex; align-items: flex-start; gap: 14px;
+    }
+    .stat-icon { width: 44px; height: 44px; border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 20px; }
+    .stat-icon.blue { background: #eef1ff; }
+    .stat-icon.yellow { background: #fef3c7; }
+    .stat-icon.green { background: #ecfdf5; }
+    .stat-icon.red { background: #fef2f2; }
+    .stat-info { flex: 1; min-width: 0; }
+    .stat-label { font-size: 13px; color: var(--color-text-secondary); margin-bottom: 4px; }
+    .stat-value { font-size: 28px; font-weight: 700; line-height: 1.2; }
+    .stat-value.blue { color: var(--color-primary); }
+    .stat-value.yellow { color: #d97706; }
+    .stat-value.green { color: var(--color-junior); }
+    .stat-value.red { color: #ef4444; }
+    .stat-sub { font-size: 12px; color: var(--color-text-muted); margin-top: 4px; }
+    /* 学科小条 */
+    .stat-subjects { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
+    .stat-subject-tag {
+      display: inline-flex; align-items: center; gap: 3px;
+      padding: 2px 7px; border-radius: 100px;
+      font-size: 11px; font-weight: 600;
+    }
+
+    /* ===== 控制栏 ===== */
+    .controls { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+    .controls-left { display: flex; align-items: center; gap: 12px; }
+    .date-nav {
+      display: flex; align-items: center;
+      background: var(--color-surface); border: 1px solid var(--color-border);
+      border-radius: var(--radius-md); overflow: hidden; box-shadow: var(--shadow-sm);
+    }
+    .date-nav button {
+      background: transparent; border: none; cursor: pointer;
+      padding: 10px 14px; color: var(--color-text-secondary);
+      transition: all .15s; display: flex; align-items: center; font-size: 14px;
+    }
+    .date-nav button:hover { background: var(--color-primary-light); color: var(--color-primary); }
+    .date-nav .date-label {
+      padding: 10px 24px; font-weight: 600; font-size: 15px;
+      min-width: 120px; text-align: center;
+      border-left: 1px solid var(--color-border);
+      border-right: 1px solid var(--color-border);
+    }
+    .btn-today {
+      padding: 10px 16px; background: var(--color-surface);
+      border: 1px solid var(--color-border); border-radius: var(--radius-md);
+      font-size: 14px; font-weight: 500; color: var(--color-text-secondary);
+      cursor: pointer; transition: all .15s;
+    }
+    .btn-today:hover { background: var(--color-primary-light); color: var(--color-primary); border-color: var(--color-primary); }
+    .view-tabs {
+      display: flex; background: var(--color-surface);
+      border: 1px solid var(--color-border); border-radius: var(--radius-md);
+      overflow: hidden; box-shadow: var(--shadow-sm);
+    }
+    .view-tab {
+      padding: 10px 16px; font-size: 14px; font-weight: 500;
+      color: var(--color-text-secondary); background: transparent;
+      border: none; cursor: pointer; transition: all .15s;
+    }
+    .view-tab:hover { background: var(--color-primary-light); color: var(--color-primary); }
+    .view-tab.active { background: var(--color-primary); color: #fff; }
+    .view-tab.active:hover { background: var(--color-primary-dark); }
+
+    /* 季节筛选标签 */
+    .season-tabs {
+      display: flex; gap: 4px;
+    }
+    .season-tab {
+      padding: 7px 12px; border-radius: var(--radius-md);
+      font-size: 13px; font-weight: 600; cursor: pointer;
+      border: 1.5px solid var(--color-border); background: var(--color-surface);
+      color: var(--color-text-secondary); transition: all .15s;
+    }
+    .season-tab:hover { border-color: var(--color-primary); color: var(--color-primary); }
+    .season-tab.active { border-color: var(--color-primary); color: var(--color-primary); background: var(--color-primary-light); }
+    .season-tab[data-season="暑"].active { border-color: #ef4444; color: #ef4444; background: #fef2f2; }
+    .season-tab[data-season="秋"].active { border-color: #f97316; color: #f97316; background: #fff7ed; }
+    .season-tab[data-season="春"].active { border-color: #10b981; color: #10b981; background: #ecfdf5; }
+    .season-tab[data-season="寒"].active { border-color: #3b82f6; color: #3b82f6; background: #eff6ff; }
+
+    /* ===== 日历主体 ===== */
+    .calendar-wrap {
+      background: var(--color-surface); border: 1px solid var(--color-border);
+      border-radius: var(--radius-lg); box-shadow: var(--shadow-md); overflow: hidden;
+    }
+    .cal-header {
+      display: grid; grid-template-columns: 52px repeat(7, 1fr) 200px;
+      background: var(--color-surface-2); border-bottom: 1px solid var(--color-border);
+    }
+    .cal-header-cell {
+      padding: 12px 8px; text-align: center;
+      font-size: 13px; font-weight: 500; color: var(--color-text-secondary);
+    }
+    .cal-header-cell.weekend { color: #ef4444; }
+    .cal-header-wk {
+      padding: 12px 4px; font-size: 11px; font-weight: 600;
+      color: var(--color-text-muted);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .cal-header-sum {
+      padding: 12px 16px; border-left: 1px solid var(--color-border);
+      font-size: 12px; font-weight: 600; color: var(--color-text-secondary);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .cal-row {
+      display: grid; grid-template-columns: 52px repeat(7, 1fr) 200px;
+      border-bottom: 1px solid var(--color-border-light);
+      min-height: 120px;
+    }
+    .cal-row:last-child { border-bottom: none; }
+    .cal-row:hover { background: #fafcff; }
+
+    /* 周号 */
+    .cal-week-num {
+      display: flex; flex-direction: column; align-items: center;
+      justify-content: flex-start; padding: 10px 4px;
+      border-right: 1px solid var(--color-border-light); gap: 2px;
+    }
+    .week-badge {
+      font-size: 10px; font-weight: 600; color: var(--color-text-muted);
+      background: var(--color-border-light); border-radius: 100px; padding: 2px 6px;
+    }
+
+    /* 日期格 */
+    .cal-day {
+      padding: 7px 5px; border-right: 1px solid var(--color-border-light);
+      display: flex; flex-direction: column; gap: 3px;
+      cursor: pointer; transition: background .12s; position: relative;
+    }
+    .cal-day:hover { background: var(--color-primary-light); }
+    .cal-day.today .day-num { background: var(--color-primary); color: #fff; }
+    .cal-day.other-month { opacity: .3; pointer-events: none; }
+    .cal-day.weekend .day-num { color: #ef4444; }
+    .day-num {
+      width: 24px; height: 24px; border-radius: 50%;
+      font-size: 12px; font-weight: 600;
+      display: flex; align-items: center; justify-content: center;
+      align-self: flex-start; flex-shrink: 0;
+    }
+    .day-clear-btn {
+      position: absolute; top: 4px; right: 4px;
+      width: 22px; height: 22px; border-radius: 50%;
+      border: none; background: rgba(239,68,68,.1);
+      cursor: pointer; font-size: 11px; line-height: 1;
+      display: flex; align-items: center; justify-content: center;
+      opacity: 0; transition: opacity .15s;
+      color: #ef4444; z-index: 2;
+    }
+    .cal-day:hover .day-clear-btn { opacity: 1; }
+    .day-clear-btn:hover { background: rgba(239,68,68,.25); }
+
+    /* ===== 学科标签区域 ===== */
+    .day-grade-group {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      width: 100%;
+    }
+    /* 年级头部行 */
+    .day-grade-header {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 5px 2px;
+      border-radius: 4px 4px 0 0;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .5px;
+    }
+    .day-grade-header.junior {
+      background: linear-gradient(90deg,#d1fae5,#a7f3d0);
+      color: #065f46;
+      border-left: 3px solid #10b981;
+    }
+    .day-grade-header.senior {
+      background: linear-gradient(90deg,#fef3c7,#fde68a);
+      color: #92400e;
+      border-left: 3px solid #f59e0b;
+    }
+    .day-grade-header .grade-total {
+      margin-left: auto;
+      font-size: 12px;
+      font-weight: 800;
+    }
+    .day-grade-header.junior .grade-total { color: #059669; }
+    .day-grade-header.senior .grade-total { color: #d97706; }
+
+    /* 学科网格 */
+    .day-subjects {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 1px;
+      padding: 2px 4px 3px;
+      border-radius: 0 0 4px 4px;
+      border-left: 3px solid transparent;
+    }
+    .day-subjects.junior {
+      background: rgba(209,250,229,.5);
+      border-left-color: #10b981;
+    }
+    .day-subjects.senior {
+      background: rgba(254,243,199,.5);
+      border-left-color: #f59e0b;
+    }
+    .subj-pill {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2px 1px;
+      border-radius: 3px;
+      min-width: 0;
+    }
+    .subj-pill .subj-name {
+      font-size: 9px;
+      font-weight: 600;
+      line-height: 1;
+      color: var(--color-text-secondary);
+      white-space: nowrap;
+    }
+    .subj-pill .subj-num {
+      font-size: 12px;
+      font-weight: 800;
+      line-height: 1.2;
+    }
+    .subj-pill.has-data { background: rgba(255,255,255,.7); }
+    .subj-pill.no-data .subj-num { color: var(--color-text-muted); }
+    .subj-pill.no-data .subj-name { color: var(--color-border); }
+    /* 学科颜色 */
+    .subj-pill[data-subj="语文"] .subj-num { color: #e11d48; }
+    .subj-pill[data-subj="数学"] .subj-num { color: #2563eb; }
+    .subj-pill[data-subj="英语"] .subj-num { color: #7c3aed; }
+    .subj-pill[data-subj="物理"] .subj-num { color: #0891b2; }
+    .subj-pill[data-subj="化学"] .subj-num { color: #d97706; }
+
+    /* ===== 周汇总列 ===== */
+    .cal-week-summary {
+      border-left: 2px solid #a5b4fc;
+      padding: 10px 12px;
+      display: flex; flex-direction: column; gap: 5px;
+      background: linear-gradient(180deg, #eef2ff 0%, #e0e7ff 100%);
+      position: relative;
+    }
+    .cal-week-summary::before {
+      content: '📊 周汇总';
+      position: absolute;
+      top: 4px; right: 6px;
+      font-size: 9px;
+      font-weight: 700;
+      color: #6366f1;
+      background: rgba(255,255,255,.7);
+      padding: 1px 5px;
+      border-radius: 4px;
+      letter-spacing: 0.5px;
+    }
+    .ws-total { font-size: 22px; font-weight: 700; color: #4f46e5; }
+    .ws-total-label { font-size: 11px; color: #6366f1; font-weight: 600; }
+    .ws-grade-row {
+      display: flex; flex-direction: column; gap: 3px;
+    }
+    .ws-grade-title {
+      font-size: 10px; font-weight: 700; padding: 2px 5px;
+      border-radius: 3px; display: flex; align-items: center; justify-content: space-between;
+    }
+    .ws-grade-title.junior { background: #d1fae5; color: #065f46; }
+    .ws-grade-title.senior { background: #fef3c7; color: #92400e; }
+    .ws-grade-title .ws-grade-count { font-size: 12px; font-weight: 800; }
+    .ws-subj-grid {
+      display: grid; grid-template-columns: repeat(5, 1fr); gap: 2px;
+    }
+    .ws-subj-cell {
+      display: flex; flex-direction: column; align-items: center;
+      padding: 2px 1px;
+    }
+    .ws-subj-cell .ws-sname { font-size: 9px; color: var(--color-text-muted); line-height: 1; }
+    .ws-subj-cell .ws-snum { font-size: 11px; font-weight: 700; line-height: 1.3; }
+    .ws-subj-cell[data-subj="语文"] .ws-snum { color: #e11d48; }
+    .ws-subj-cell[data-subj="数学"] .ws-snum { color: #2563eb; }
+    .ws-subj-cell[data-subj="英语"] .ws-snum { color: #7c3aed; }
+    .ws-subj-cell[data-subj="物理"] .ws-snum { color: #0891b2; }
+    .ws-subj-cell[data-subj="化学"] .ws-snum { color: #d97706; }
+    .ws-subj-cell .ws-snum.zero { color: var(--color-text-muted); font-weight: 400; }
+
+    /* ===== 截图识别弹窗 ===== */
+    .modal-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,.5); z-index: 200;
+      display: none; align-items: center; justify-content: center;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: var(--color-surface); border-radius: var(--radius-lg);
+      width: 95vw; max-width: 1100px; max-height: 92vh;
+      overflow: hidden; box-shadow: var(--shadow-lg);
+      display: flex; flex-direction: column;
+    }
+    .modal-header {
+      padding: 16px 20px; border-bottom: 1px solid var(--color-border);
+      display: flex; align-items: center; justify-content: space-between;
+      flex-shrink: 0;
+    }
+    .modal-title { font-size: 16px; font-weight: 600; }
+    .modal-close {
+      width: 32px; height: 32px; border-radius: 50%;
+      border: none; background: var(--color-surface-2);
+      cursor: pointer; font-size: 18px;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--color-text-secondary);
+    }
+    .modal-body { flex: 1; overflow-y: auto; padding: 16px; }
+    .screenshot-area {
+      border: 2px dashed var(--color-border); border-radius: var(--radius-lg);
+      padding: 40px; text-align: center; cursor: pointer;
+      transition: all .2s; background: var(--color-surface-2);
+    }
+    .screenshot-area:hover { border-color: var(--color-primary); background: var(--color-primary-light); }
+    .screenshot-icon { font-size: 48px; margin-bottom: 12px; }
+    .screenshot-text { font-size: 15px; color: var(--color-text-secondary); }
+    .screenshot-hint { font-size: 13px; color: var(--color-text-muted); margin-top: 8px; }
+    .screenshot-preview { position: relative; display: inline-block; }
+    .screenshot-preview img { max-width: 100%; max-height: 35vh; border-radius: var(--radius-md); }
+    .screenshot-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+
+    /* 识别结果面板 */
+    .recog-status {
+      text-align: center; padding: 12px 0;
+      font-size: 14px; color: var(--color-text-secondary);
+    }
+    .recog-spin { animation: spin 1s linear infinite; display: inline-block; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .recog-result-box {
+      background: var(--color-surface-2); border: 1px solid var(--color-border);
+      border-radius: var(--radius-lg); padding: 16px;
+    }
+    .recog-result-title {
+      font-size: 14px; font-weight: 600; color: var(--color-text-primary);
+      margin-bottom: 14px; display: flex; align-items: center; gap: 8px;
+    }
+    .recog-meta-row { display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; margin-bottom: 16px; }
+    .recog-meta-item { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+    .recog-meta-item label { font-size: 13px; font-weight: 600; color: var(--color-text-primary); white-space: nowrap; }
+    .recog-meta-item select { cursor: pointer; min-width: 100px; }
+    /* 日期行 */
+    .recog-date-row {
+      display: flex; align-items: center; gap: 12px; margin-bottom: 16px;
+    }
+    .recog-date-row label { font-size: 13px; font-weight: 600; color: var(--color-text-secondary); white-space: nowrap; }
+    .recog-input {
+      padding: 9px 12px; border: 1.5px solid var(--color-border);
+      border-radius: var(--radius-md); font-size: 14px; font-family: var(--font);
+      background: var(--color-surface); color: var(--color-text-primary);
+      transition: border-color .15s; cursor: pointer;
+    }
+    .recog-input:focus { outline: none; border-color: var(--color-primary); }
+    /* 年级学科输入区 */
+    .recog-grade-block {
+      margin-bottom: 12px; border-radius: var(--radius-md); overflow: hidden;
+      border: 1.5px solid var(--color-border);
+    }
+    .recog-grade-head {
+      padding: 8px 14px; font-size: 13px; font-weight: 700;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .recog-grade-head.junior { background: linear-gradient(90deg,#d1fae5,#a7f3d0); color: #065f46; }
+    .recog-grade-head.senior { background: linear-gradient(90deg,#fef3c7,#fde68a); color: #92400e; }
+    .recog-grade-head .head-total { margin-left: auto; font-size: 14px; font-weight: 800; }
+    .recog-grade-head.junior .head-total { color: #059669; }
+    .recog-grade-head.senior .head-total { color: #d97706; }
+    .subgrade-select {
+      margin-left: auto;
+      margin-right: 8px;
+      padding: 3px 8px;
+      border: 1px solid var(--color-border);
+      border-radius: 6px;
+      font-size: 12px;
+      background: white;
+      color: var(--color-text);
+      cursor: pointer;
+    }
+    .subgrade-select:focus { outline: none; border-color: var(--color-primary); }
+    .recog-subj-grid {
+      display: grid; grid-template-columns: repeat(5, 1fr);
+      gap: 1px; background: var(--color-border-light);
+      background: #f1f5f9;
+    }
+    .recog-subj-cell {
+      display: flex; flex-direction: column; align-items: center;
+      padding: 6px 2px; gap: 3px;
+      background: var(--color-surface);
+    }
+    .recog-subj-cell:last-child { border-right: none; }
+    .recog-subj-label {
+      font-size: 11px; font-weight: 600; color: var(--color-text-secondary);
+      display: flex; align-items: center; gap: 3px;
+    }
+    .recog-subj-label .subj-dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; }
+    .recog-counter {
+      display: flex; align-items: center;
+      background: var(--color-surface-2); border: 1.5px solid var(--color-border);
+      border-radius: var(--radius-md); overflow: hidden;
+    }
+    .recog-counter-btn {
+      width: 24px; height: 30px; border: none; background: transparent;
+      font-size: 14px; font-weight: 700; cursor: pointer;
+      color: var(--color-text-secondary); transition: all .15s;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .recog-counter-btn:hover { background: var(--color-primary-light); color: var(--color-primary); }
+    .recog-counter-val {
+      width: 28px; text-align: center;
+      font-size: 15px; font-weight: 800; line-height: 1;
+      color: var(--color-text-primary);
+    }
+    .modal-actions {
+      padding: 14px 20px; border-top: 1px solid var(--color-border);
+      display: flex; align-items: center; gap: 12px; flex-shrink: 0;
+    }
+
+    /* 手动输入表单 */
+    .manual-form {
+      display: flex; flex-direction: column; gap: 16px;
+    }
+    .manual-date-row {
+      display: flex; align-items: center; gap: 12px;
+    }
+    .manual-form-label {
+      font-size: 13px; font-weight: 600; color: var(--color-text-primary);
+      white-space: nowrap; min-width: 48px;
+    }
+    .manual-form .recog-input { flex: 1; max-width: 240px; }
+    .manual-meta-row {
+      display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap;
+    }
+    .manual-date-row, .manual-season-row, .manual-designer-row {
+      display: flex; align-items: center; gap: 8px; flex-shrink: 0;
+    }
+    .manual-season-row { flex-wrap: wrap; }
+    .manual-designer-row select { cursor: pointer; min-width: 100px; }
+
+    /* 季节芯片 */
+    .season-chips { display: flex; gap: 4px; }
+    .sc-chip {
+      padding: 6px 14px; border-radius: 100px; font-size: 13px; font-weight: 600;
+      border: 1.5px solid var(--color-border); background: var(--color-surface);
+      color: var(--color-text-secondary); cursor: pointer; transition: all .15s;
+    }
+    .sc-chip:hover { transform: none; }
+    .sc-chip.active[data-season="暑"] { border-color: #ef4444; color: #ef4444; background: #fef2f2; }
+    .sc-chip.active[data-season="秋"] { border-color: #f97316; color: #f97316; background: #fff7ed; }
+    .sc-chip.active[data-season="春"] { border-color: #10b981; color: #10b981; background: #ecfdf5; }
+    .sc-chip.active[data-season="寒"] { border-color: #3b82f6; color: #3b82f6; background: #eff6ff; }
+
+    /* ===== 响应式 ===== */
+    @media (max-width: 1100px) {
+      .stats-row { grid-template-columns: repeat(2, 1fr); }
+      .cal-header, .cal-row { grid-template-columns: 44px repeat(7, 1fr) 160px; }
+    }
+    @media (max-width: 800px) {
+      .main { padding: 12px; }
+      .stats-row { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+      .cal-header, .cal-row { grid-template-columns: 32px repeat(7, 1fr) 0; }
+      .cal-week-summary, .cal-header-sum { display: none; }
+      .modal { width: 96vw; }
+    }
+  </style>
+  <!-- 强制禁用缓存 -->
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <!-- 腾讯云 CloudBase Web SDK -->
+  <script src="https://static.cloudbase.net/cloudbase-js-sdk/latest/cloudbase.full.js"></script>
+  <!-- Tesseract.js OCR -->
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+</head>
+<body>
+
+<!-- ===== 顶部导航 ===== -->
+<header class="topbar">
+  <div class="topbar-left">
+    <div class="topbar-logo">
+      <div class="topbar-logo-icon">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="white">
+          <rect x="3" y="3" width="7" height="7" rx="1"/>
+          <rect x="14" y="3" width="7" height="7" rx="1"/>
+          <rect x="3" y="14" width="7" height="7" rx="1"/>
+          <rect x="14" y="14" width="7" height="7" rx="1"/>
+        </svg>
+      </div>
+      产能调度系统
+    </div>
+    <span class="topbar-title">工作日历</span>
+  </div>
+  <div class="topbar-actions">
+    <button class="btn btn-ghost" style="color:var(--color-primary);border-color:var(--color-primary);" onclick="openBatchProcessModal()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+        <rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
+      </svg>
+      批量处理
+    </button>
+    <button class="btn btn-ghost" onclick="openScreenshotModal()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/>
+        <path d="M21 15l-5-5L5 21"/>
+      </svg>
+      截图识别
+    </button>
+    <button class="btn btn-ghost" onclick="exportData()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+        <polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+      </svg>
+      导出数据
+    </button>
+    <button class="btn btn-ghost" onclick="openImportModal()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+        <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+      </svg>
+      导入 Excel
+    </button>
+    <button class="btn btn-ghost" id="btnSync" onclick="manualSync()" title="同步云端数据">
+      <svg id="syncIcon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
+        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+      </svg>
+      同步
+    </button>
+    <button class="btn btn-warning" id="btnDedup" onclick="deduplicateEntries()" title="清理重复数据">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+      </svg>
+      去重
+    </button>
+    <button class="btn btn-primary" onclick="openManualModal()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+      </svg>
+      新建任务
+    </button>
+  </div>
+</header>
+
+<!-- ===== 主体 ===== -->
+<main class="main">
+
+  <!-- 统计卡片 -->
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="stat-icon blue">📅</div>
+      <div class="stat-info">
+        <div class="stat-label">本月总量</div>
+        <div class="stat-value blue" id="statTotal">0</div>
+        <div class="stat-subjects" id="statSubjectsTotal"></div>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon green">🏫</div>
+      <div class="stat-info">
+        <div class="stat-label">初中总量</div>
+        <div class="stat-value green" id="statJunior">0</div>
+        <div class="stat-subjects" id="statSubjectsJunior"></div>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon yellow">🏫</div>
+      <div class="stat-info">
+        <div class="stat-label">高中总量</div>
+        <div class="stat-value yellow" id="statSenior">0</div>
+        <div class="stat-subjects" id="statSubjectsSenior"></div>
+      </div>
+    </div>
+    <div class="stat-card" id="designerCard" style="cursor:pointer;" onclick="openDesignerModal()">
+      <div class="stat-icon red">👤</div>
+      <div class="stat-info">
+        <div class="stat-label">排版人员</div>
+        <div class="stat-value red" id="statDesignerCount">0</div>
+        <div class="stat-sub gray" id="designerCardSub">点击查看设计师</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 控制栏 -->
+  <div class="controls">
+    <div class="controls-left">
+      <div class="date-nav">
+        <button onclick="prevPeriod()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <span class="date-label" id="dateLabel">2026年4月</span>
+        <button onclick="nextPeriod()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+      </div>
+      <button class="btn-today" onclick="goToday()">今天</button>
+      <div class="view-tabs">
+        <button class="view-tab active" id="tabMonth" onclick="switchView('month')">月视图</button>
+        <button class="view-tab" id="tabWeek" onclick="switchView('week')">周视图</button>
+      </div>
+      <div class="season-tabs" id="seasonTabs">
+        <button class="season-tab active" data-season="全部" onclick="filterSeason('全部')">全部</button>
+        <button class="season-tab" data-season="暑" onclick="filterSeason('暑')">暑</button>
+        <button class="season-tab" data-season="秋" onclick="filterSeason('秋')">秋</button>
+        <button class="season-tab" data-season="春" onclick="filterSeason('春')">春</button>
+        <button class="season-tab" data-season="寒" onclick="filterSeason('寒')">寒</button>
+      </div>
+      <button class="btn-today" style="background:#fef2f2;color:#dc2626;border-color:#fca5a5;" onclick="clearMonthData()">🗑 清空整月</button>
+    </div>
+  </div>
+
+  <!-- 日历 -->
+  <div class="calendar-wrap">
+    <div class="cal-header">
+      <div class="cal-header-wk">周次</div>
+      <div class="cal-header-cell">周一</div>
+      <div class="cal-header-cell">周二</div>
+      <div class="cal-header-cell">周三</div>
+      <div class="cal-header-cell">周四</div>
+      <div class="cal-header-cell">周五</div>
+      <div class="cal-header-cell weekend">周六</div>
+      <div class="cal-header-cell weekend">周日</div>
+      <div class="cal-header-sum">周汇总</div>
+    </div>
+    <div id="calBody"></div>
+  </div>
+</main>
+
+<!-- ===== 截图识别弹窗 ===== -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">📋 截图识别 &amp; 数据录入</div>
+      <button class="modal-close" onclick="closeScreenshotModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <!-- 上传区 -->
+      <div class="screenshot-area" id="screenshotArea" onclick="document.getElementById('fileInput').click()">
+        <div class="screenshot-icon">🖼️</div>
+        <div class="screenshot-text">点击上传 / 拖拽图片 / Ctrl+V 粘贴截图</div>
+        <div class="screenshot-hint">支持钉钉排班截图，自动识别数量后手动确认</div>
+      </div>
+      <!-- 图片预览 -->
+      <div id="screenshotPreview" style="display:none; text-align:center; margin-bottom:14px;">
+        <div class="screenshot-preview" id="screenshotPreviewInner">
+          <img id="screenshotImg" src="" alt="截图">
+          <div class="screenshot-overlay" id="screenshotOverlay"></div>
+        </div>
+      </div>
+      <!-- 识别结果确认区 -->
+      <div id="recognizePanel" style="display:none;">
+        <div class="recog-status" id="recogStatus"><span class="recog-spin">⏳</span> 正在识别截图内容…</div>
+        <div class="recog-result-box" id="recogResultBox" style="display:none;">
+          <div class="recog-result-title">✅ 请确认数据（可手动修改）</div>
+          <!-- 元数据行：日期 + 季节 + 设计师 -->
+          <div class="recog-meta-row">
+            <div class="recog-meta-item">
+              <label>📅 日期</label>
+              <input type="date" id="recogDate" class="recog-input" />
+            </div>
+            <div class="recog-meta-item">
+              <label>📆 季节</label>
+              <div class="season-chips" id="recogSeasonChips">
+                <button class="sc-chip active" data-season="暑" onclick="selectRecogSeasonChip(this)">暑</button>
+                <button class="sc-chip" data-season="秋" onclick="selectRecogSeasonChip(this)">秋</button>
+                <button class="sc-chip" data-season="春" onclick="selectRecogSeasonChip(this)">春</button>
+                <button class="sc-chip" data-season="寒" onclick="selectRecogSeasonChip(this)">寒</button>
+              </div>
+            </div>
+            <div class="recog-meta-item">
+              <label>👤 设计师</label>
+              <select id="recogDesigner" class="recog-input"></select>
+            </div>
+          </div>
+          <!-- 初中 -->
+          <div class="recog-grade-block" id="juniorBlock">
+            <div class="recog-grade-head junior">
+              <span>🏫 初中</span>
+              <select class="subgrade-select" id="screenshotSubGradeJunior">
+                <option value="">未细分</option>
+                <option value="初一">初一</option>
+                <option value="初二">初二</option>
+                <option value="初三">初三</option>
+              </select>
+              <span class="head-total" id="juniorBlockTotal">0</span>
+            </div>
+            <div class="recog-subj-grid" id="juniorSubjGrid"></div>
+          </div>
+          <!-- 高中 -->
+          <div class="recog-grade-block" id="seniorBlock">
+            <div class="recog-grade-head senior">
+              <span>🏫 高中</span>
+              <select class="subgrade-select" id="screenshotSubGradeSenior">
+                <option value="">未细分</option>
+                <option value="高一">高一</option>
+                <option value="高二">高二</option>
+                <option value="高三">高三</option>
+              </select>
+              <span class="head-total" id="seniorBlockTotal">0</span>
+            </div>
+            <div class="recog-subj-grid" id="seniorSubjGrid"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="clearScreenshot()">重新上传</button>
+      <div style="flex:1;"></div>
+      <button class="btn btn-primary" onclick="confirmScreenshot()">确认添加</button>
+    </div>
+  </div>
+</div>
+
+<input type="file" id="fileInput" accept="image/*" style="display:none">
+
+<!-- ===== 自定义提示弹窗 ===== -->
+<div class="modal-overlay" id="toastModal" style="background:rgba(0,0,0,0);pointer-events:none;">
+  <div class="modal" style="max-width:360px;pointer-events:auto;">
+    <div class="modal-header" id="toastTitleBar">
+      <div class="modal-title" id="toastTitle" style="color:#fff;">✅ 成功</div>
+    </div>
+    <div class="modal-body" id="toastBody" style="padding:20px;text-align:center;">
+      <div id="toastMessage" style="font-size:14px;line-height:1.6;"></div>
+    </div>
+    <div class="modal-actions" id="toastActions" style="justify-content:center;">
+      <button class="btn btn-primary" onclick="closeToast()">确定</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 确认删除弹窗 ===== -->
+<div class="modal-overlay" id="confirmModal" style="z-index:300;">
+  <div class="modal" style="max-width:360px;">
+    <div class="modal-header" style="background:#fef2f2;">
+      <div class="modal-title" style="color:#dc2626;">⚠️ 确认操作</div>
+      <button class="modal-close" onclick="closeConfirm()">×</button>
+    </div>
+    <div class="modal-body" style="padding:20px;text-align:center;">
+      <div id="confirmMessage" style="font-size:14px;line-height:1.6;"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeConfirm()">取消</button>
+      <button class="btn btn-primary" id="confirmBtn" style="background:#dc2626;" onclick="doConfirm()">确定删除</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 设计师学科关联弹窗 ===== -->
+<div class="modal-overlay" id="designerSubjectModal" style="z-index:300;">
+  <div class="modal" style="max-width:360px;">
+    <div class="modal-header" style="background:#eef2ff;">
+      <div class="modal-title" style="color:#4f46e5;">🏷️ 关联学科</div>
+      <button class="modal-close" onclick="closeDesignerSubjectModal()">×</button>
+    </div>
+    <div class="modal-body" id="designerSubjectBody" style="padding:20px;">
+      <div style="font-size:13px;color:var(--color-text-secondary);margin-bottom:12px;">选择该设计师负责的学科（可多选）：</div>
+      <div id="designerSubjectOptions" style="display:flex;flex-direction:column;gap:8px;"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeDesignerSubjectModal()">取消</button>
+      <button class="btn btn-primary" onclick="saveDesignerSubjectEdit()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 手动输入弹窗 ===== -->
+<div class="modal-overlay" id="manualModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">✏️ 新建任务 - 手动录入</div>
+      <button class="modal-close" onclick="closeManualModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="manual-form">
+        <div class="manual-meta-row">
+          <div class="manual-date-row">
+            <label class="manual-form-label">📅 日期</label>
+            <input type="date" id="manualDate" class="recog-input" />
+          </div>
+          <div class="manual-season-row">
+            <label class="manual-form-label">📆 季节</label>
+            <div class="season-chips" id="manualSeasonChips">
+              <button class="sc-chip active" data-season="暑" onclick="selectSeasonChip(this)">暑</button>
+              <button class="sc-chip" data-season="秋" onclick="selectSeasonChip(this)">秋</button>
+              <button class="sc-chip" data-season="春" onclick="selectSeasonChip(this)">春</button>
+              <button class="sc-chip" data-season="寒" onclick="selectSeasonChip(this)">寒</button>
+            </div>
+          </div>
+          <div class="manual-designer-row">
+            <label class="manual-form-label">👤 设计师</label>
+            <select id="manualDesigner" class="recog-input"></select>
+          </div>
+        </div>
+        <div class="recog-grade-block" id="manualJuniorBlock">
+          <div class="recog-grade-head junior">
+            <span>🏫 初中</span>
+            <select class="subgrade-select" id="manualSubGradeJunior">
+              <option value="">未细分</option>
+              <option value="初一">初一</option>
+              <option value="初二">初二</option>
+              <option value="初三">初三</option>
+            </select>
+            <span class="head-total" id="manualJuniorTotal">0</span>
+          </div>
+          <div class="recog-subj-grid" id="manualJuniorSubjGrid"></div>
+        </div>
+        <div class="recog-grade-block" id="manualSeniorBlock">
+          <div class="recog-grade-head senior">
+            <span>🏫 高中</span>
+            <select class="subgrade-select" id="manualSubGradeSenior">
+              <option value="">未细分</option>
+              <option value="高一">高一</option>
+              <option value="高二">高二</option>
+              <option value="高三">高三</option>
+            </select>
+            <span class="head-total" id="manualSeniorTotal">0</span>
+          </div>
+          <div class="recog-subj-grid" id="manualSeniorSubjGrid"></div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="resetManualModal()">重置</button>
+      <div style="flex:1;"></div>
+      <button class="btn btn-primary" onclick="confirmManual()">确认添加</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 编辑当天数据弹窗 ===== -->
+<div class="modal-overlay" id="editDayModal">
+  <div class="modal" style="max-width:480px;">
+    <div class="modal-header">
+      <div class="modal-title" id="editDayTitle">✏️ 编辑当天数据</div>
+      <button class="modal-close" onclick="closeEditDayModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="manual-form">
+        <div class="recog-grade-block" id="editDayGradeBlock">
+          <div class="recog-grade-head junior" id="editDayGradeHead">
+            <span id="editDayGradeName">🏫 初中</span>
+            <span class="head-total" id="editDayGradeTotal">0</span>
+          </div>
+          <div class="recog-subj-grid" id="editDaySubjGrid"></div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" style="border:1px solid #fca5a5;background:#fef2f2;color:#dc2626;" onclick="deleteDayData()">删除此行</button>
+      <div style="flex:1;"></div>
+      <button class="btn btn-ghost" onclick="closeEditDayModal()">取消</button>
+      <button class="btn btn-primary" onclick="confirmEditDay()">保存修改</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 管理设计师弹窗 ===== -->
+<div class="modal-overlay" id="designerModal">
+  <div class="modal" style="max-width:560px;">
+    <div class="modal-header">
+      <div class="modal-title">👥 管理设计师</div>
+      <button class="modal-close" onclick="closeDesignerModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <!-- 单条添加 -->
+      <div style="margin-bottom:14px;">
+        <div style="display:flex;gap:8px;margin-bottom:10px;">
+          <input type="text" id="newDesignerName" class="recog-input" placeholder="输入设计师姓名" style="flex:1;" onkeydown="if(event.key==='Enter')addDesigner()" />
+          <button class="btn btn-primary" onclick="addDesigner()">添加</button>
+        </div>
+        <!-- 批量导入区域 -->
+        <div style="border:1.5px dashed var(--color-border);border-radius:var(--radius-md);padding:10px 12px;background:var(--color-surface-2);">
+          <div style="font-size:12px;font-weight:600;color:var(--color-text-secondary);margin-bottom:6px;">📥 批量导入（每行一个姓名）</div>
+          <textarea id="batchDesignerInput" rows="3" placeholder="张三&#10;李四&#10;王五" style="width:100%;padding:7px 10px;border:1.5px solid var(--color-border);border-radius:6px;font-size:13px;resize:vertical;background:#fff;"></textarea>
+          <div style="display:flex;gap:6px;margin-top:6px;">
+            <button class="btn btn-primary" style="font-size:12px;padding:5px 12px;" onclick="batchImportDesigners()">导入</button>
+            <button class="btn btn-ghost" style="font-size:12px;padding:5px 12px;" onclick="document.getElementById('batchDesignerInput').value=''">清空</button>
+          </div>
+        </div>
+      </div>
+      <!-- 批量操作工具栏 -->
+      <div id="designerBatchBar" style="display:none;margin-bottom:10px;padding:8px 12px;background:#fff7ed;border:1px solid #fed7aa;border-radius:var(--radius-md);align-items:center;gap:8px;">
+        <span style="font-size:13px;color:#c2410c;font-weight:600;" id="designerSelectedCount">0</span>
+        <span style="font-size:12px;color:#c2410c;">已选</span>
+        <div style="flex:1;"></div>
+        <button class="btn btn-ghost" style="font-size:12px;padding:4px 10px;border:1px solid #fed7aa;background:#fff;" onclick="toggleAllDesigners()">全选</button>
+        <button class="btn btn-ghost" style="font-size:12px;padding:4px 10px;border:1px solid #fca5a5;background:#fef2f2;color:#dc2626;" onclick="batchDeleteDesigners()">🗑 批量删除</button>
+      </div>
+      <!-- 批量选择模式切换 -->
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;color:var(--color-text-secondary);">
+          <input type="checkbox" id="designerBatchMode" onchange="toggleDesignerBatchMode()" style="width:15px;height:15px;cursor:pointer;" />
+          批量选择模式
+        </label>
+        <div style="flex:1;"></div>
+        <div style="font-size:12px;color:var(--color-text-muted);">共 <span id="designerCount">0</span> 位设计师</div>
+      </div>
+      <!-- 设计师列表 -->
+      <div id="designerList" style="display:flex;flex-direction:column;gap:8px;"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-primary" onclick="closeDesignerModal()">完成</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 批量处理日程弹窗 ===== -->
+<div class="modal-overlay" id="batchProcessModal">
+  <div class="modal" style="max-width:680px;">
+    <div class="modal-header">
+      <div class="modal-title">📋 批量处理日程</div>
+      <button class="modal-close" onclick="closeBatchProcessModal()">×</button>
+    </div>
+    <div class="modal-body" style="max-height:70vh;overflow-y:auto;">
+      <div style="margin-bottom:16px;">
+        <div style="font-size:13px;font-weight:600;color:var(--color-text-secondary);margin-bottom:10px;">🔍 筛选条件</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+          <div>
+            <label style="font-size:12px;color:var(--color-text-muted);display:block;margin-bottom:4px;">年级</label>
+            <select id="batchGrade" class="recog-input" style="width:100%;">
+              <option value="">全部年级</option>
+              <option value="初中">初中</option>
+              <option value="高中">高中</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size:12px;color:var(--color-text-muted);display:block;margin-bottom:4px;">季节</label>
+            <select id="batchSeason" class="recog-input" style="width:100%;">
+              <option value="">全部季节</option>
+              <option value="暑">暑假</option>
+              <option value="秋">秋季</option>
+              <option value="春">春季</option>
+              <option value="寒">寒假</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size:12px;color:var(--color-text-muted);display:block;margin-bottom:4px;">设计师</label>
+            <select id="batchDesigner" class="recog-input" style="width:100%;">
+              <option value="">全部设计师</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size:12px;color:var(--color-text-muted);display:block;margin-bottom:4px;">学科</label>
+            <select id="batchSubject" class="recog-input" style="width:100%;">
+              <option value="">全部学科</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size:12px;color:var(--color-text-muted);display:block;margin-bottom:4px;">起始日期</label>
+            <input type="date" id="batchDateFrom" class="recog-input" style="width:100%;" />
+          </div>
+          <div>
+            <label style="font-size:12px;color:var(--color-text-muted);display:block;margin-bottom:4px;">结束日期</label>
+            <input type="date" id="batchDateTo" class="recog-input" style="width:100%;" />
+          </div>
+        </div>
+        <div style="margin-top:10px;display:flex;gap:8px;">
+          <button class="btn btn-primary" style="font-size:13px;padding:7px 16px;" onclick="queryBatchEntries()">🔍 查询</button>
+          <button class="btn btn-ghost" style="font-size:13px;padding:7px 16px;" onclick="clearBatchFilter()">重置</button>
+        </div>
+      </div>
+      <div id="batchResultSection" style="display:none;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+          <div style="font-size:13px;font-weight:600;color:var(--color-text-secondary);">
+            查询结果：<span id="batchResultCount" style="color:var(--color-primary);">0</span> 条记录，共 <span id="batchResultTotal" style="color:#d97706;font-weight:700;">0</span> 册
+          </div>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:var(--color-text-secondary);">
+            <input type="checkbox" id="batchSelectAll" onchange="toggleBatchSelectAll()" style="width:14px;height:14px;cursor:pointer;accent-color:var(--color-primary);" />
+            全选
+          </label>
+        </div>
+        <div id="batchEntriesList" style="max-height:300px;overflow-y:auto;border:1px solid var(--color-border);border-radius:var(--radius-md);"></div>
+        <div style="margin-top:14px;padding:12px;background:#fff7ed;border:1px solid #fed7aa;border-radius:var(--radius-md);">
+          <div style="font-size:13px;font-weight:600;color:#c2410c;margin-bottom:10px;">⚡ 批量操作（已选 <span id="batchSelectedCount">0</span> 条）</div>
+          <div style="display:flex;flex-wrap:wrap;gap:8px;">
+            <button class="btn btn-ghost" style="font-size:12px;padding:6px 12px;border:1px solid #fca5a5;background:#fef2f2;color:#dc2626;" onclick="batchDeleteSelected()">🗑 删除选中</button>
+            <div style="display:flex;align-items:center;gap:6px;">
+              <span style="font-size:12px;color:var(--color-text-secondary);">分配设计师：</span>
+              <select id="batchAssignDesigner" class="recog-input" style="width:120px;font-size:12px;padding:5px 8px;"></select>
+              <button class="btn btn-ghost" style="font-size:12px;padding:5px 10px;border:1px solid var(--color-border);" onclick="batchAssignDesigner()">✅ 应用</button>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px;">
+              <span style="font-size:12px;color:var(--color-text-secondary);">修改季节：</span>
+              <select id="batchAssignSeason" class="recog-input" style="width:90px;font-size:12px;padding:5px 8px;">
+                <option value="">保持不变</option>
+                <option value="暑">暑假</option>
+                <option value="秋">秋季</option>
+                <option value="春">春季</option>
+                <option value="寒">寒假</option>
+              </select>
+              <button class="btn btn-ghost" style="font-size:12px;padding:5px 10px;border:1px solid var(--color-border);" onclick="batchAssignSeason()">✅ 应用</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-primary" onclick="closeBatchProcessModal()">完成</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   全局配置
+============================================================ */
+const SUBJECTS = ['语文', '数学', '英语', '物理', '化学'];
+const SUBJ_COLORS = { '语文':'#e11d48','数学':'#2563eb','英语':'#7c3aed','物理':'#0891b2','化学':'#d97706' };
+const SUBJ_DOTS  = { '语文':'#fda4af','数学':'#93c5fd','英语':'#c4b5fd','物理':'#67e8f9','化学':'#fcd34d' };
+const SEASONS = ['暑', '秋', '春', '寒'];
+const SEASON_COLORS = { '暑':'#ef4444','秋':'#f97316','春':'#10b981','寒':'#3b82f6' };
+const SEASON_BG = { '暑':'#fef2f2','秋':'#fff7ed','春':'#ecfdf5','寒':'#eff6ff' };
+const SEASON_LABELS = { '暑':'暑假','秋':'秋季','春':'春季','寒':'寒假' };
+const SUB_GRADES = { '初中': ['初一','初二','初三'], '高中': ['高一','高二','高三'] };
+/* 设计师名单（可自定义修改） */
+const DEFAULT_DESIGNERS = ['陈璇', '任悦', '王苗苗', '袁雯钰'];
+function getDesigners() {
+  const stored = localStorage.getItem('designerList');
+  if (stored) {
+    try {
+      const parsed = JSON.parse(stored);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    } catch (e) { /* 解析失败，使用默认值 */ }
+  }
+  // 首次初始化或数据无效，使用默认值
+  localStorage.setItem('designerList', JSON.stringify(DEFAULT_DESIGNERS));
+  return [...DEFAULT_DESIGNERS];
+}
+function saveDesigners(list) {
+  localStorage.setItem('designerList', JSON.stringify(list));
+}
+
+const DEFAULT_DESIGNER_SUBJECTS = {
+  '陈璇': ['数学'],
+  '任悦': ['英语'],
+  '王苗苗': ['物理', '化学'],
+  '袁雯钰': ['语文']
+};
+function getDesignerSubjects() {
+  const stored = localStorage.getItem('designerSubjects');
+  if (stored) {
+    try {
+      const parsed = JSON.parse(stored);
+      // 确保返回的映射有效（非空对象）
+      if (parsed && Object.keys(parsed).length > 0) return parsed;
+    } catch (e) { /* 解析失败，使用默认值 */ }
+  }
+  // 首次初始化或数据无效，使用默认值
+  localStorage.setItem('designerSubjects', JSON.stringify(DEFAULT_DESIGNER_SUBJECTS));
+  return { ...DEFAULT_DESIGNER_SUBJECTS };
+}
+function saveDesignerSubjects(map) {
+  localStorage.setItem('designerSubjects', JSON.stringify(map));
+}
+
+// 根据学科自动匹配设计师（强关联）
+function getDesignerBySubject(subject) {
+  const subjMap = getDesignerSubjects();
+  for (const [designer, subjs] of Object.entries(subjMap)) {
+    if (subjs.includes(subject)) return designer;
+  }
+  return '';
+}
+
+// ============================================================
+//   IndexedDB 存储（替代 localStorage，绕过 5MB 限制）
+// ============================================================
+const IDB_DB = 'capacityCalendarDB';
+const IDB_STORE = 'entries';
+const IDB_VER = 1;
+
+function idbOpen() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(IDB_DB, IDB_VER);
+    req.onupgradeneeded = () => req.result.createObjectStore(IDB_STORE);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+function idbGet(key) {
+  return idbOpen().then(db => new Promise((resolve, reject) => {
+    const tx = db.transaction(IDB_STORE, 'readonly');
+    const req = tx.objectStore(IDB_STORE).get(key);
+    req.onsuccess = () => resolve(req.result || null);
+    req.onerror = () => reject(req.error);
+  }));
+}
+function idbSet(key, value) {
+  return idbOpen().then(db => new Promise((resolve, reject) => {
+    const tx = db.transaction(IDB_STORE, 'readwrite');
+    const req = tx.objectStore(IDB_STORE).put(value, key);
+    req.onsuccess = () => resolve();
+    req.onerror = () => reject(req.error);
+  }));
+}
+function idbDel(key) {
+  return idbOpen().then(db => new Promise((resolve, reject) => {
+    const tx = db.transaction(IDB_STORE, 'readwrite');
+    const req = tx.objectStore(IDB_STORE).delete(key);
+    req.onsuccess = () => resolve();
+    req.onerror = () => reject(req.error);
+  }));
+}
+
+// 本地持久化 entries（使用 IndexedDB，无容量限制）
+function saveEntriesLocal() {
+  try {
+    const data = JSON.stringify(entries);
+    idbSet('scheduleEntries_v2', data).then(() => {
+      console.log('[IDB] 保存成功:', entries.length, '条, 大小:', data.length, '字节');
+    }).catch(e => {
+      console.error('[IDB] 保存失败', e);
+      showToast('本地保存失败', 'IndexedDB 写入异常', 'error');
+    });
+  } catch (e) {
+    console.error('[IDB] JSON 序列化失败', e);
+  }
+}
+function loadEntriesLocal() {
+  return new Promise(resolve => {
+    idbGet('scheduleEntries_v2').then(raw => {
+      if (!raw) {
+        console.log('[IDB] scheduleEntries_v2 不存在');
+        resolve([]);
+        return;
+      }
+      const data = JSON.parse(raw);
+      console.log('[IDB] 读取成功:', data.length, '条');
+      resolve(Array.isArray(data) ? data : []);
+    }).catch(e => {
+      console.error('[IDB] 读取失败', e);
+      resolve([]);
+    });
+  });
+}
+
+/* ============================================================
+   CloudBase 初始化
+   环境ID：shilu901104-d5gzke3g67780e4c8
+============================================================ */
+const CB_ENV = 'shilu901104-d5gzke3g67780e4c8';
+const cbApp = cloudbase.init({ env: CB_ENV, region: 'ap-shanghai' });
+const cbAuth = cbApp.auth({ persistence: 'local' });
+const cbDb = cbApp.database();
+const cbCol = cbDb.collection('ScheduleEntry');
+
+// 全局加载状态
+let _cbReady = false;
+async function cbSignIn() {
+  try {
+    // 免费版匿名 token 可能过期，总是重新登录确保 token 有效
+    await cbAuth.signInAnonymously();
+    _cbReady = true;
+    console.log('[CB] 匿名登录成功');
+  } catch(e) {
+    console.error('[CB] 登录失败', e);
+    _cbReady = false;
+  }
+}
+
+// 从云端加载所有 entries（支持超过100条，分批拉取）
+async function cbLoadEntries() {
+  try {
+    const all = [];
+    let skip = 0;
+    const limit = 100;
+    while(true) {
+      const res = await cbCol.limit(limit).skip(skip).get();
+      if (!res.data || res.data.length === 0) break;
+      all.push(...res.data);
+      if (res.data.length < limit) break;
+      skip += limit;
+    }
+    console.log('[CB] 查询到', all.length, '条云端数据');
+    return all.map(r => ({
+      id: r._id,
+      date: r.date,
+      grade: r.grade,
+      subject: r.subject,
+      count: r.count || 0,
+      season: r.season || '暑',
+      designer: r.designer || getDesignerBySubject(r.subject) || '',
+      subGrade: r.subGrade || '',
+      version: r.version || '',
+      lesson: r.lesson || ''
+    }));
+  } catch(e) {
+    console.error('[CB] 查询失败', e);
+    return [];
+  }
+}
+
+// 单条写入云端（返回云端 _id，赋给 entry.id）
+async function cbAddEntry(entry) {
+  try {
+    const { id, ...data } = entry;
+    const res = await cbCol.add({ data });
+    return res.id; // 云端分配的 _id
+  } catch (e) {
+    console.error('[CB] 单条写入失败:', entry, e);
+    return null;
+  }
+}
+
+// 批量写入云端
+async function cbAddEntries(list) {
+  const errors = [];
+  for (const entry of list) {
+    try {
+      const { id, ...data } = entry;
+      const res = await cbCol.add({ data });
+      entry.id = res.id; // 回写 _id
+    } catch (e) {
+      console.error('[CB] 写入失败:', entry, e);
+      errors.push(entry);
+    }
+  }
+  if (errors.length > 0) {
+    console.warn('[CB] 批量写入完成，失败', errors.length, '条');
+  } else {
+    console.log('[CB] 批量写入成功:', list.length, '条');
+  }
+  return errors;
+}
+
+// 按 id 删除
+async function cbRemoveEntry(id) {
+  await cbDb.collection('ScheduleEntry').doc(id).remove();
+}
+
+// 按条件批量删除（date + grade 组合）
+async function cbRemoveWhere(conditions) {
+  // CloudBase 前端不支持批量删 where，逐条删
+  const ids = conditions.map(e => e.id).filter(Boolean);
+  for (const id of ids) {
+    await cbDb.collection('ScheduleEntry').doc(id).remove();
+  }
+}
+
+// 更新单条
+async function cbUpdateEntry(id, data) {
+  await cbDb.collection('ScheduleEntry').doc(id).update({ data });
+}
+
+/* ============================================================
+   云端同步（多人协作）
+============================================================ */
+let _syncTimer = null;
+let _syncInterval = 15000; // 15秒轮询一次（降低免费版请求压力）
+let _lastSyncCount = 0;
+let _syncInFlight = false;
+
+// 从云端拉取最新数据并合并到本地
+// silent=true：静默同步（轮询用，不弹窗）
+// force=true：强制同步（页面切回时用）
+async function cbSyncFromCloud(force = false, silent = false) {
+  if (!_cbReady) { console.log('[SYNC] _cbReady=false, 跳过'); return; }
+  if (_syncInFlight) { console.log('[SYNC] 有同步进行中, 跳过'); return; }
+  _syncInFlight = true;
+  console.log('[SYNC] 开始同步, 本地', entries.length, '条');
+  try {
+    // 双向同步：先推本地新增到云端
+    const pushed = await pushLocalToCloud();
+    if (pushed > 0) console.log('[SYNC] 已推送', pushed, '条到云端');
+
+    const cloudData = await cbLoadEntries();
+    console.log('[SYNC] 云端返回', cloudData.length, '条');
+
+    // 【防御1】若此前已同步过非零数据，云端突然返回空数组，大概率是权限/网络抖动
+    if (_lastSyncCount > 0 && cloudData.length === 0) {
+      console.warn('[SYNC] 云端突然返回空数组（上次有', _lastSyncCount, '条），跳过本次同步，保留本地数据');
+      _syncInFlight = false;
+      return;
+    }
+
+    // 【安全策略】本地数据无条件保留，云端数据仅作补充
+    const localIds = new Set(entries.map(e => e.id).filter(Boolean));
+    const merged = [...entries]; // 先复制所有本地数据
+    let added = 0;
+
+    for (const c of cloudData) {
+      if (c.id && !localIds.has(c.id)) {
+        merged.push(c);
+        added++;
+      } else if (!c.id) {
+        console.warn('[SYNC] 云端数据缺少 id:', c);
+      }
+    }
+
+    console.log('[SYNC] 合并结果: 本地', entries.length, '条 + 云端新增', added, '条 = 共', merged.length, '条');
+
+    // 【防御2】合并后数据不应减少
+    if (merged.length < entries.length) {
+      console.error('[SYNC] ⚠️ 合并后数据减少，阻止覆盖！本地', entries.length, '→ 合并', merged.length);
+      _syncInFlight = false;
+      return;
+    }
+
+    // 只在数据实际变化时才更新 UI
+    if (merged.length > entries.length || force) {
+      entries = merged;
+      saveEntriesLocal();
+      buildCalendar();
+      if (!silent) showToast('数据同步', `已同步，当前共 ${entries.length} 条记录`, 'info');
+    } else {
+      console.log('[SYNC] 数据无变化, 跳过更新');
+    }
+
+    _lastSyncCount = cloudData.length;
+  } catch(e) {
+    console.error('[SYNC] 同步异常', e);
+  } finally {
+    _syncInFlight = false;
+  }
+}
+
+// ============================================================
+//   数据去重
+// ============================================================
+async function deduplicateEntries() {
+  const btn = document.getElementById('btnDedup');
+  if (btn) { btn.disabled = true; btn.innerHTML = '⏳ 去重中...'; }
+
+  try {
+    // 用关键字段组合生成指纹
+    const fingerprint = (e) => [
+      e.date || '',
+      e.subject || '',
+      e.grade || '',
+      e.designer || '',
+      e.season || '',
+      e.subGrade || '',
+      e.version || '',
+      e.lesson || ''
+    ].join('||');
+
+    const seen = new Map(); // fingerprint → index
+    const duplicates = []; // 重复条目的 id 列表
+
+    for (let i = 0; i < entries.length; i++) {
+      const fp = fingerprint(entries[i]);
+      if (seen.has(fp)) {
+        duplicates.push({ index: i, id: entries[i].id, fp });
+      } else {
+        seen.set(fp, i);
+      }
+    }
+
+    if (duplicates.length === 0) {
+      showToast('去重完成', '没有发现重复数据', 'info');
+      return;
+    }
+
+    console.log('[DEDUP] 发现', duplicates.length, '条重复数据');
+    if (confirm(`发现 ${duplicates.length} 条重复数据，是否删除？\n\n（保留第一条，删除后续重复项）`)) {
+      // 从后往前删除，避免索引错乱
+      const toRemove = duplicates.sort((a, b) => b.index - a.index);
+      let localRemoved = 0, cloudRemoved = 0;
+
+      for (const dup of toRemove) {
+        const entry = entries[dup.index];
+        // 从云端删除（有 id 的话）
+        if (dup.id && _cbReady) {
+          try {
+            await cbDb.collection('ScheduleEntry').doc(dup.id).remove();
+            cloudRemoved++;
+            console.log('[DEDUP] 云端删除:', dup.id);
+          } catch (e) {
+            console.error('[DEDUP] 云端删除失败:', dup.id, e);
+          }
+        }
+        // 从本地删除
+        entries.splice(dup.index, 1);
+        localRemoved++;
+      }
+
+      saveEntriesLocal();
+      renderCalendar();
+      renderUpcomingList();
+      console.log('[DEDUP] 完成：本地删除', localRemoved, '条，云端删除', cloudRemoved, '条');
+      showToast('去重完成', `已删除 ${localRemoved} 条重复数据`, 'success');
+    }
+  } catch (e) {
+    console.error('[DEDUP] 去重异常', e);
+    showToast('去重失败', e.message, 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg> 去重'; }
+  }
+}
+
+// 将本地有但云端没有的条目推送到云端（双向同步核心）
+async function pushLocalToCloud() {
+  if (!_cbReady) {
+    console.error('[PUSH] ❌ _cbReady=false，CloudBase 未就绪');
+    showToast('同步失败', '云端未连接，请稍后重试', 'warning'); return 0;
+  }
+  const cloudData = await cbLoadEntries();
+  const cloudIds = new Set(cloudData.map(e => e.id));
+  console.log('[PUSH] 云端条目数:', cloudData.length, '| 云端IDs样本:', [...cloudIds].slice(0,3));
+  console.log('[PUSH] 本地条目数:', entries.length, '| 本地IDs样本:', entries.slice(0,3).map(e => e.id));
+  const toPush = entries.filter(e => !e.id || !cloudIds.has(e.id));
+  console.log('[PUSH] 需要推送的条目数:', toPush.length);
+  if (toPush.length === 0) {
+    console.log('[PUSH] 无需推送（所有条目已在云端，或本地无数据）');
+    return 0;
+  }
+  console.log('[PUSH] 开始推送', toPush.length, '条到云端...');
+  let ok = 0;
+  for (const entry of toPush) {
+    try {
+      const { id, ...data } = entry;
+      const res = await cbCol.add({ data });
+      entry.id = res.id;
+      ok++;
+      console.log('[PUSH] ✅ 推送成功:', entry.subject, entry.date, '云端id=', res.id);
+    } catch (e) {
+      console.error('[PUSH] ❌ 推送失败:', entry, e);
+    }
+  }
+  if (ok > 0) saveEntriesLocal();
+  console.log('[PUSH] 完成：成功', ok, '/', toPush.length);
+  return ok;
+}
+
+// 手动同步按钮回调（先推本地→云端，再拉云端→本地）
+async function manualSync() {
+  const btn = document.getElementById('btnSync');
+  const icon = document.getElementById('syncIcon');
+  if (btn.disabled) return;
+  btn.disabled = true;
+  icon.style.animation = 'spin 1s linear infinite';
+
+  try {
+    // 先推本地新增到云端
+    const pushed = await pushLocalToCloud();
+    // 再拉云端最新数据合并到本地
+    await cbSyncFromCloud(true);
+    showToast('同步完成', `已推送 ${pushed} 条到云端，并拉取最新数据`, 'success');
+  } catch(e) {
+    console.error('[SYNC] 手动同步异常', e);
+    showToast('同步失败', '请检查网络连接', 'error');
+  } finally {
+    btn.disabled = false;
+    icon.style.animation = '';
+  }
+}
+
+// 启动自动同步
+function startAutoSync() {
+  if (_syncTimer) clearInterval(_syncTimer);
+  _syncTimer = setInterval(() => cbSyncFromCloud(false, true), _syncInterval);
+  console.log('[CB] 自动同步已启动，间隔', _syncInterval, 'ms');
+}
+
+// 停止自动同步
+function stopAutoSync() {
+  if (_syncTimer) {
+    clearInterval(_syncTimer);
+    _syncTimer = null;
+  }
+}
+
+// 页面可见性变化时同步（强制刷新）
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') {
+    console.log('[CB] 页面重新可见，触发同步');
+    cbSyncFromCloud(true);
+  }
+});
+
+/* ============================================================
+   数据存储
+   entry 格式：{ id, date, grade:'初中'|'高中', subject:'语文'|..., count, season:'暑'|'秋'|'春'|'寒', designer:'姓名', subGrade:'' }
+============================================================ */
+let entries = [];
+
+let currentYear = 2026, currentMonth = 4;
+let currentWeekStart = null, currentView = 'month';
+let selectedDate = null, screenshotData = null;
+let currentSeason = '全部';
+
+/* 弹窗中的计数状态：{ 初中: {语文:0,...}, 高中: {...} } */
+let modalCounts = makeEmptyCounts();
+function makeEmptyCounts() {
+  const c = {};
+  ['初中','高中'].forEach(g => { c[g] = {}; SUBJECTS.forEach(s => { c[g][s] = 0; }); });
+  return c;
+}
+
+/* ============================================================
+   视图切换
+============================================================ */
+function switchView(view) {
+  currentView = view;
+  document.getElementById('tabMonth').classList.toggle('active', view === 'month');
+  document.getElementById('tabWeek').classList.toggle('active', view === 'week');
+  buildCalendar();
+}
+function filterSeason(season) {
+  currentSeason = season;
+  document.querySelectorAll('.season-tab').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.season === season);
+  });
+  buildCalendar();
+}
+
+/* ============================================================
+   日历渲染辅助
+============================================================ */
+function getDaySubjectCounts(dateStr) {
+  // 返回 { 初中:{ 语文:n, ... }, 高中:{...} }
+  const result = makeEmptyCounts();
+  entries.filter(e => e.date === dateStr && (currentSeason === '全部' || e.season === currentSeason)).forEach(e => {
+    if (result[e.grade] && result[e.grade][e.subject] !== undefined) {
+      result[e.grade][e.subject] += e.count;
+    }
+  });
+  return result;
+}
+function gradeTotal(counts, grade) {
+  return SUBJECTS.reduce((s, subj) => s + (counts[grade][subj] || 0), 0);
+}
+function renderDaySubjects(counts, grade, dateStr) {
+  const cls = grade === '初中' ? 'junior' : 'senior';
+  const total = gradeTotal(counts, grade);
+  if (total === 0) return '';
+  let html = `<div class="day-grade-group" onclick="event.stopPropagation();openEditDayModal('${dateStr}','${grade}')" style="cursor:pointer;">`;
+  html += `<div class="day-grade-header ${cls}">
+    <span>${grade}</span>
+    <span class="grade-total">${total}</span>
+  </div>`;
+  html += `<div class="day-subjects ${cls}">`;
+  SUBJECTS.forEach(subj => {
+    const n = counts[grade][subj] || 0;
+    const hasData = n > 0;
+    html += `<div class="subj-pill ${hasData ? 'has-data' : 'no-data'}" data-subj="${subj}">
+      <span class="subj-name">${subj}</span>
+      <span class="subj-num">${hasData ? n : '—'}</span>
+    </div>`;
+  });
+  html += `</div></div>`;
+  return html;
+}
+function renderWeekSummary(weekDates) {
+  // 汇总整周数据
+  const totals = makeEmptyCounts();
+  weekDates.forEach(dateStr => {
+    if (!dateStr) return;
+    entries.filter(e => e.date === dateStr && (currentSeason === '全部' || e.season === currentSeason)).forEach(e => {
+      if (totals[e.grade] && totals[e.grade][e.subject] !== undefined) {
+        totals[e.grade][e.subject] += e.count;
+      }
+    });
+  });
+  const jTotal = gradeTotal(totals, '初中');
+  const sTotal = gradeTotal(totals, '高中');
+  const all = jTotal + sTotal;
+
+  let html = `<div class="cal-week-summary">`;
+  html += `<div class="ws-total">${all}</div>`;
+  html += `<div class="ws-total-label">本周总量</div>`;
+
+  ['初中','高中'].forEach(grade => {
+    const cls = grade === '初中' ? 'junior' : 'senior';
+    const gTotal = gradeTotal(totals, grade);
+    html += `<div class="ws-grade-row">
+      <div class="ws-grade-title ${cls}">
+        <span>${grade}</span>
+        <span class="ws-grade-count">${gTotal}</span>
+      </div>
+      <div class="ws-subj-grid">`;
+    SUBJECTS.forEach(subj => {
+      const n = totals[grade][subj] || 0;
+      html += `<div class="ws-subj-cell" data-subj="${subj}">
+        <span class="ws-sname">${subj}</span>
+        <span class="ws-snum${n===0?' zero':''}">${n || '—'}</span>
+      </div>`;
+    });
+    html += `</div></div>`;
+  });
+  html += `</div>`;
+  return html;
+}
+
+/* ============================================================
+   月视图
+============================================================ */
+function buildMonthView() {
+  document.getElementById('dateLabel').textContent = `${currentYear}年${currentMonth}月`;
+  const firstDay = new Date(currentYear, currentMonth-1, 1).getDay();
+  const startOffset = (firstDay === 0) ? 6 : firstDay - 1;
+  const daysInMonth = new Date(currentYear, currentMonth, 0).getDate();
+  const daysInPrev = new Date(currentYear, currentMonth-1, 0).getDate();
+  const today = new Date();
+  const isCurrentMonth = (today.getFullYear()===currentYear && today.getMonth()+1===currentMonth);
+
+  const cells = [];
+  for (let i = 0; i < 42; i++) {
+    const dayNum = i - startOffset + 1;
+    if (dayNum < 1) cells.push({ day: daysInPrev + dayNum, other: true, y: currentYear, m: currentMonth-1 || 12 });
+    else if (dayNum > daysInMonth) cells.push({ day: dayNum - daysInMonth, other: true, y: currentYear, m: currentMonth+1 > 12 ? 1 : currentMonth+1 });
+    else cells.push({ day: dayNum, y: currentYear, m: currentMonth });
+  }
+  const weeks = [];
+  for (let w = 0; w < 6; w++) {
+    const wk = cells.slice(w*7, w*7+7);
+    if (wk.every(c => c.other)) continue;
+    weeks.push(wk);
+  }
+  function getWeekNum(d) {
+    const date = new Date(d.y, d.m-1, d.day);
+    const startOfYear = new Date(date.getFullYear(), 0, 1);
+    return Math.ceil((date - startOfYear) / (7*24*60*60*1000) + startOfYear.getDay() / 7);
+  }
+
+  let html = '';
+  weeks.forEach(week => {
+    const wNum = getWeekNum(week.find(c => !c.other) || week[0]);
+    const weekDates = week.map(c => c.other ? null : `${c.y}-${String(c.m).padStart(2,'0')}-${String(c.day).padStart(2,'0')}`);
+
+    html += `<div class="cal-row">`;
+    html += `<div class="cal-week-num"><span class="week-badge">W${wNum}</span></div>`;
+
+    week.forEach((cell, di) => {
+      const isToday = isCurrentMonth && !cell.other && cell.day === today.getDate();
+      const isWeekend = di >= 5;
+      const dateStr = cell.other ? '' : `${cell.y}-${String(cell.m).padStart(2,'0')}-${String(cell.day).padStart(2,'0')}`;
+      const counts = cell.other ? null : getDaySubjectCounts(dateStr);
+
+      html += `<div class="cal-day${isToday?' today':''}${cell.other?' other-month':''}${isWeekend?' weekend':''}"
+        onclick="onDayClick('${dateStr}',${cell.y},${cell.m},${cell.day})">`;
+      html += `<div class="day-num">${cell.day}</div>`;
+      if (!cell.other) {
+        const dayTotal = gradeTotal(counts, '初中') + gradeTotal(counts, '高中');
+        if (dayTotal > 0) {
+          html += `<button class="day-clear-btn" onclick="event.stopPropagation();clearDayData('${dateStr}')" title="清空全天">🗑</button>`;
+        }
+        html += renderDaySubjects(counts, '初中', dateStr);
+        html += renderDaySubjects(counts, '高中', dateStr);
+      }
+      html += `</div>`;
+    });
+
+    html += renderWeekSummary(weekDates);
+    html += `</div>`;
+  });
+  document.getElementById('calBody').innerHTML = html;
+}
+
+/* ============================================================
+   周视图
+============================================================ */
+function buildWeekView() {
+  const today = new Date();
+  if (currentWeekStart === null) {
+    const dayOfWeek = today.getDay();
+    const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+    currentWeekStart = new Date(today);
+    currentWeekStart.setDate(today.getDate() + diff);
+  }
+  const endOfWeek = new Date(currentWeekStart);
+  endOfWeek.setDate(currentWeekStart.getDate() + 6);
+  document.getElementById('dateLabel').textContent =
+    `${currentWeekStart.getFullYear()}年${currentWeekStart.getMonth()+1}月${currentWeekStart.getDate()}日 - ${endOfWeek.getMonth()+1}月${endOfWeek.getDate()}日`;
+  const weekdays = ['周一','周二','周三','周四','周五','周六','周日'];
+
+  const weekDates = [];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(currentWeekStart);
+    d.setDate(currentWeekStart.getDate() + i);
+    weekDates.push(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`);
+  }
+
+  let html = `<div class="cal-row">`;
+  html += `<div class="cal-week-num"><span class="week-badge">本周</span></div>`;
+  weekDates.forEach((dateStr, i) => {
+    const d = new Date(currentWeekStart);
+    d.setDate(currentWeekStart.getDate() + i);
+    const isToday = d.toDateString() === today.toDateString();
+    const isWeekend = i >= 5;
+    const counts = getDaySubjectCounts(dateStr);
+    html += `<div class="cal-day${isToday?' today':''}${isWeekend?' weekend':''}"
+      onclick="onDayClick('${dateStr}',${d.getFullYear()},${d.getMonth()+1},${d.getDate()})">`;
+    html += `<div class="day-num">${d.getDate()}</div>`;
+    html += `<div style="font-size:10px;color:var(--color-text-muted);margin-bottom:3px;">${weekdays[i]}</div>`;
+    const wkDayTotal = gradeTotal(counts, '初中') + gradeTotal(counts, '高中');
+    if (wkDayTotal > 0) {
+      html += `<button class="day-clear-btn" onclick="event.stopPropagation();clearDayData('${dateStr}')" title="清空全天">🗑</button>`;
+    }
+    html += renderDaySubjects(counts, '初中', dateStr);
+    html += renderDaySubjects(counts, '高中', dateStr);
+    html += `</div>`;
+  });
+  html += renderWeekSummary(weekDates);
+  html += `</div>`;
+  document.getElementById('calBody').innerHTML = html;
+}
+
+/* ============================================================
+   统一入口
+============================================================ */
+function buildCalendar() {
+  if (currentView === 'month') buildMonthView();
+  else buildWeekView();
+  updateStats();
+}
+
+/* ============================================================
+   统计更新
+============================================================ */
+function updateStats() {
+  let filtered;
+  if (currentView === 'month') {
+    filtered = entries.filter(e => {
+      const d = new Date(e.date);
+      return d.getFullYear() === currentYear && d.getMonth()+1 === currentMonth;
+    });
+  } else if (currentWeekStart) {
+    const weekEnd = new Date(currentWeekStart);
+    weekEnd.setDate(weekEnd.getDate() + 7);
+    filtered = entries.filter(e => {
+      const d = new Date(e.date);
+      return d >= currentWeekStart && d < weekEnd;
+    });
+  } else {
+    filtered = entries;
+  }
+  // 季节筛选
+  if (currentSeason !== '全部') {
+    filtered = filtered.filter(e => e.season === currentSeason);
+  }
+
+  const total = filtered.reduce((s, e) => s + e.count, 0);
+  const juniorTotal = filtered.filter(e => e.grade === '初中').reduce((s, e) => s + e.count, 0);
+  const seniorTotal = filtered.filter(e => e.grade === '高中').reduce((s, e) => s + e.count, 0);
+
+  document.getElementById('statTotal').textContent = total;
+  document.getElementById('statJunior').textContent = juniorTotal;
+  document.getElementById('statSenior').textContent = seniorTotal;
+
+  // 设计师统计
+  const designerCounts = {};
+  filtered.forEach(e => {
+    if (e.designer) designerCounts[e.designer] = (designerCounts[e.designer] || 0) + e.count;
+  });
+  const sorted = Object.entries(designerCounts).sort((a, b) => b[1] - a[1]);
+  const top = sorted.slice(0, 3);
+  const topName = top.length > 0 ? top[0][0] : '暂无数据';
+  const topCount = top.length > 0 ? top[0][1] : 0;
+  // 显示注册设计师总数
+  document.getElementById('statDesignerCount').textContent = getDesigners().length;
+  document.getElementById('designerCardSub').innerHTML = top.length > 0
+    ? `<span style="color:#ef4444;font-weight:700;">${topName}</span> ${topCount}册（点击管理）`
+    : '点击添加设计师';
+
+  // 学科小标签
+  function renderStatSubjects(grade, containerId) {
+    const container = document.getElementById(containerId);
+    const tags = SUBJECTS.map(subj => {
+      const n = filtered.filter(e => e.grade === grade && e.subject === subj).reduce((s, e) => s + e.count, 0);
+      if (n === 0) return '';
+      return `<span class="stat-subject-tag" style="background:${SUBJ_DOTS[subj]}22;color:${SUBJ_COLORS[subj]};">
+        <span style="width:5px;height:5px;border-radius:50%;background:${SUBJ_COLORS[subj]};display:inline-block;"></span>
+        ${subj} ${n}
+      </span>`;
+    }).join('');
+    container.innerHTML = tags || '<span style="font-size:12px;color:var(--color-text-muted);">暂无数据</span>';
+  }
+  renderStatSubjects('初中','statSubjectsJunior');
+  renderStatSubjects('高中','statSubjectsSenior');
+  // 总量学科小标签（合计）—— 显示所有学科，0值灰色
+  const totalEl = document.getElementById('statSubjectsTotal');
+  const allTags = SUBJECTS.map(subj => {
+    const n = filtered.filter(e => e.subject === subj).reduce((s, e) => s + e.count, 0);
+    const color = SUBJ_COLORS[subj];
+    const dot = SUBJ_DOTS[subj];
+    if (n === 0) {
+      return `<span class="stat-subject-tag" style="background:#f1f5f9;color:#94a3b8;">
+        <span style="width:5px;height:5px;border-radius:50%;background:#cbd5e1;display:inline-block;"></span>
+        ${subj} 0
+      </span>`;
+    }
+    return `<span class="stat-subject-tag" style="background:${dot}22;color:${color};">
+      <span style="width:5px;height:5px;border-radius:50%;background:${color};display:inline-block;"></span>
+      ${subj} ${n}
+    </span>`;
+  }).join('');
+  totalEl.innerHTML = allTags || '<span style="font-size:12px;color:var(--color-text-muted);">暂无数据</span>';
+}
+
+/* ============================================================
+   日历点击
+============================================================ */
+function onDayClick(dateStr, y, m, d) {
+  if (!dateStr) return;
+  selectedDate = dateStr;
+  openDayDetailModal(dateStr);
+}
+
+function openDayDetailModal(dateStr) {
+  const existing = document.getElementById('dayDetailModal');
+  if (existing) existing.remove();
+
+  const dayEntries = entries.filter(e => e.date === dateStr);
+  const totalCount = dayEntries.reduce((s, e) => s + e.count, 0);
+
+  // 按年级分组
+  const byGrade = { '初中': [], '高中': [] };
+  dayEntries.forEach(e => {
+    if (byGrade[e.grade]) byGrade[e.grade].push(e);
+  });
+
+  const modal = document.createElement('div');
+  modal.id = 'dayDetailModal';
+  modal.className = 'modal-overlay open';
+  modal.innerHTML = `
+    <div class="modal" style="max-width:580px;">
+      <div class="modal-header">
+        <div class="modal-title">📅 ${formatDateCN(dateStr)} 日程详情（共 ${totalCount} 册）</div>
+        <button class="modal-close" onclick="document.getElementById('dayDetailModal').remove()">×</button>
+      </div>
+      <div class="modal-body" style="max-height:65vh;overflow-y:auto;">
+        ${totalCount === 0 ? '<div style="text-align:center;padding:30px;color:var(--color-text-muted);font-size:14px;">该日暂无日程</div>' : `
+        ${['初中','高中'].map(grade => {
+          const items = byGrade[grade];
+          if (!items || items.length === 0) return '';
+          const gradeColor = grade === '初中' ? '#059669' : '#d97706';
+          const gradeBg = grade === '初中' ? '#ecfdf5' : '#fef3c7';
+          const gradeTotal = items.reduce((s, e) => s + e.count, 0);
+          // 按学科分组
+          const bySubject = {};
+          items.forEach(e => {
+            if (!bySubject[e.subject]) bySubject[e.subject] = [];
+            bySubject[e.subject].push(e);
+          });
+          return `
+          <div style="margin-bottom:16px;">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+              <span style="font-size:13px;font-weight:700;color:${gradeColor};">${grade}</span>
+              <span style="background:${gradeBg};color:${gradeColor};border-radius:100px;padding:1px 8px;font-size:11px;font-weight:700;">${gradeTotal} 册</span>
+              <button onclick="openDesignerModal()" style="margin-left:auto;padding:2px 10px;border:1px solid var(--color-border);border-radius:var(--radius-sm);background:var(--color-surface);cursor:pointer;font-size:11px;color:var(--color-text-secondary);">👥 管理设计师</button>
+            </div>
+            <div style="border:1px solid var(--color-border);border-radius:var(--radius-md);overflow:hidden;">
+              ${Object.entries(bySubject).map(([subj, subjEntries]) => {
+                const subjColor = SUBJ_COLORS[subj] || '#333';
+                const subjTotal = subjEntries.reduce((s, e) => s + e.count, 0);
+                // 按 subGrade(年级数字) → version → lesson 排序
+                const sgOrder = { '初一':1,'初二':2,'初三':3,'高一':4,'高二':5,'高三':6 };
+                subjEntries.sort((a, b) => {
+                  const oa = sgOrder[a.subGrade] || 99;
+                  const ob = sgOrder[b.subGrade] || 99;
+                  if (oa !== ob) return oa - ob;
+                  if (a.version !== b.version) return (a.version || '').localeCompare(b.version || '');
+                  return (a.lesson || '').localeCompare(b.lesson || '');
+                });
+                // 按 subGrade 分组
+                const bySubGrade = {};
+                subjEntries.forEach(e => {
+                  const sg = e.subGrade || '(未细分)';
+                  if (!bySubGrade[sg]) bySubGrade[sg] = [];
+                  bySubGrade[sg].push(e);
+                });
+                const sgKeys = Object.keys(bySubGrade).sort((a, b) => (sgOrder[a]||99) - (sgOrder[b]||99));
+                // 设计师与学科强关联
+                const designerStr = getDesignerBySubject(subj) || '—';
+                return `
+                <div style="padding:10px 12px;border-bottom:1px solid var(--color-border-light);">
+                  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+                    <span style="font-size:13px;font-weight:700;color:${subjColor};">${subj}</span>
+                    <span style="font-size:13px;font-weight:700;color:#1e293b;">× ${subjTotal}</span>
+                  </div>
+                  ${sgKeys.map(sg => {
+                    const sgItems = bySubGrade[sg];
+                    const sgTotal = sgItems.reduce((s, e) => s + e.count, 0);
+                    return `
+                    <div style="margin-bottom:4px;">
+                      <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;">
+                        <span style="background:#fef3c7;padding:1px 6px;border-radius:4px;font-size:11px;font-weight:600;color:#d97706;">${sg}</span>
+                        <span style="font-size:11px;color:#94a3b8;">👤 ${designerStr}</span>
+                        <span style="margin-left:auto;font-size:11px;font-weight:600;color:#64748b;">× ${sgTotal}</span>
+                      </div>
+                      <div style="display:flex;flex-wrap:wrap;gap:4px;">
+                        ${sgItems.map(e => {
+                          const badges = [];
+                          if (e.version) badges.push(`<span style="background:#dbeafe;padding:1px 5px;border-radius:3px;font-size:11px;font-weight:500;color:#1d4ed8;">${e.version}</span>`);
+                          if (e.lesson) badges.push(`<span style="background:#f0fdf4;padding:1px 5px;border-radius:3px;font-size:11px;font-weight:500;color:#15803d;">${e.lesson}</span>`);
+                          return `<span style="display:inline-flex;align-items:center;gap:3px;font-size:12px;color:#475569;padding:2px 6px;background:#f8fafc;border-radius:4px;border:1px solid #e2e8f0;">${badges.join('')}</span>`;
+                        }).join('')}
+                      </div>
+                    </div>`;
+                  }).join('')}
+                </div>`;
+              }).join('')}
+            </div>
+          </div>`;
+        }).join('')}
+        `}
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" style="border:1px solid #fca5a5;background:#fef2f2;color:#dc2626;" onclick="clearDayData('${dateStr}')">🗑 清空全天</button>
+        <div style="flex:1;"></div>
+        <button class="btn btn-ghost" onclick="document.getElementById('dayDetailModal').remove()">关闭</button>
+        <button class="btn btn-primary" onclick="document.getElementById('dayDetailModal').remove();openManualModal()">➕ 添加数据</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+}
+
+/* ============================================================
+   截图弹窗
+============================================================ */
+function openScreenshotModal() {
+  document.getElementById('modalOverlay').classList.add('open');
+  clearScreenshot();
+}
+function closeScreenshotModal() {
+  document.getElementById('modalOverlay').classList.remove('open');
+  clearScreenshot();
+}
+function clearScreenshot() {
+  screenshotData = null;
+  modalCounts = makeEmptyCounts();
+  document.getElementById('screenshotArea').style.display = 'block';
+  document.getElementById('screenshotPreview').style.display = 'none';
+  document.getElementById('recognizePanel').style.display = 'none';
+  document.getElementById('recogStatus').style.display = 'block';
+  document.getElementById('recogResultBox').style.display = 'none';
+  // 日期默认值
+  const d = selectedDate ? new Date(selectedDate) : new Date();
+  document.getElementById('recogDate').value =
+    `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  // 季节芯片重置
+  document.querySelectorAll('#recogSeasonChips .sc-chip').forEach(c => c.classList.remove('active'));
+  const first = document.querySelector('#recogSeasonChips .sc-chip');
+  if (first) first.classList.add('active');
+  // 填充设计师下拉
+  const sel = document.getElementById('recogDesigner');
+  if (sel) sel.innerHTML = getDesigners().map(d => `<option value="${d}">${d}</option>`).join('');
+  // 重置细分年级
+  document.getElementById('screenshotSubGradeJunior').value = '';
+  document.getElementById('screenshotSubGradeSenior').value = '';
+}
+function selectRecogSeasonChip(btn) {
+  document.querySelectorAll('#recogSeasonChips .sc-chip').forEach(c => c.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+function buildModalSubjGrids() {
+  ['初中','高中'].forEach(grade => {
+    const cls = grade === '初中' ? 'junior' : 'senior';
+    const gridId = grade === '初中' ? 'juniorSubjGrid' : 'seniorSubjGrid';
+    const grid = document.getElementById(gridId);
+    grid.innerHTML = '';
+    SUBJECTS.forEach(subj => {
+      const cell = document.createElement('div');
+      cell.className = 'recog-subj-cell';
+      cell.innerHTML = `
+        <div class="recog-subj-label">
+          <span class="subj-dot" style="background:${SUBJ_DOTS[subj]};"></span>
+          <span style="color:${SUBJ_COLORS[subj]};font-weight:700;">${subj}</span>
+        </div>
+        <div class="recog-counter">
+          <button class="recog-counter-btn" onclick="changeSubjCount('${grade}','${subj}',-1)">−</button>
+          <span class="recog-counter-val" id="cnt_${grade}_${subj}">${modalCounts[grade][subj]}</span>
+          <button class="recog-counter-btn" onclick="changeSubjCount('${grade}','${subj}',1)">+</button>
+        </div>`;
+      grid.appendChild(cell);
+    });
+  });
+  updateModalTotals();
+}
+
+function changeSubjCount(grade, subj, delta) {
+  modalCounts[grade][subj] = Math.max(0, (modalCounts[grade][subj] || 0) + delta);
+  const el = document.getElementById(`cnt_${grade}_${subj}`);
+  if (el) el.textContent = modalCounts[grade][subj];
+  updateModalTotals();
+}
+
+function updateModalTotals() {
+  const jTotal = SUBJECTS.reduce((s, subj) => s + (modalCounts['初中'][subj] || 0), 0);
+  const sTotal = SUBJECTS.reduce((s, subj) => s + (modalCounts['高中'][subj] || 0), 0);
+  const jEl = document.getElementById('juniorBlockTotal');
+  const sEl = document.getElementById('seniorBlockTotal');
+  if (jEl) jEl.textContent = jTotal;
+  if (sEl) sEl.textContent = sTotal;
+}
+
+function handleImageUpload(file) {
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    screenshotData = e.target.result;
+    showScreenshotPreview(e.target.result);
+    autoRecognize(e.target.result);
+  };
+  reader.readAsDataURL(file);
+}
+
+function showScreenshotPreview(dataUrl) {
+  document.getElementById('screenshotArea').style.display = 'none';
+  document.getElementById('screenshotPreview').style.display = 'block';
+  document.getElementById('recognizePanel').style.display = 'block';
+  document.getElementById('recogStatus').style.display = 'block';
+  document.getElementById('recogResultBox').style.display = 'none';
+  document.getElementById('screenshotImg').src = dataUrl;
+}
+
+/* ============================================================
+   自动识别：Tesseract.js OCR 文字识别 + 文字解析
+   策略：先 OCR 提取文字 → 解析学科+数量组合 → 颜色分析兜底
+============================================================ */
+let _tesseractWorker = null;
+
+async function getTesseractWorker() {
+  if (!_tesseractWorker) {
+    _tesseractWorker = await Tesseract.createWorker('chiSim+eng', 1, {
+      logger: m => {
+        if (m.status === 'recognizing text') {
+          const pct = Math.round(m.progress * 100);
+          const statusEl = document.getElementById('recogStatus');
+          if (statusEl) statusEl.innerHTML = `<span class="recog-spin">⏳</span> 正在识别文字… ${pct}%`;
+        }
+      }
+    });
+  }
+  return _tesseractWorker;
+}
+
+// 解析 OCR 文字，提取学科数量
+function parseOCRText(text) {
+  const results = { 初中: {}, 高中: {} };
+  const lines = text.split('\n');
+
+  // 学科关键词正则
+  const subjPatterns = {
+    '语文': /语[\s]*文|语文/,
+    '数学': /数[\s]*学|数学/,
+    '英语': /英[\s]*语|英语/,
+    '物理': /物[\s]*理|物理/,
+    '化学': /化[\s]*学|化学/,
+  };
+  // 年级关键词
+  const gradePatterns = {
+    '初中': /初中|初一|初二|初三|七年级|八年级|九年级/,
+    '高中': /高中|高一|高二|高三/,
+  };
+  // 数字正则
+  const numRe = /\d+/g;
+
+  let currentGrade = null;
+  lines.forEach(line => {
+    const trimmed = line.trim();
+    if (!trimmed) return;
+
+    // 检测年级行
+    for (const [grade, re] of Object.entries(gradePatterns)) {
+      if (re.test(trimmed)) { currentGrade = grade; break; }
+    }
+
+    // 检测学科+数量组合
+    // 格式1: "语文 8" / "数学8" / "数学: 12"
+    // 格式2: "语文：8" / "数学  12"
+    // 格式3: "初中语文 8"
+    for (const [subj, subjRe] of Object.entries(subjPatterns)) {
+      if (!subjRe.test(trimmed)) continue;
+      // 找数字（可能有多个，取最接近学科名后的那个）
+      const nums = trimmed.match(numRe) || [];
+      if (nums.length === 0) continue;
+
+      // 找学科名在字符串中的位置
+      const subjMatch = trimmed.match(subjRe);
+      if (!subjMatch) continue;
+      const subjIdx = subjMatch.index;
+      let count = 0;
+
+      // 学科名之后的数字优先
+      const afterSubj = trimmed.slice(subjIdx + subjMatch[0].length);
+      const numsAfter = afterSubj.match(numRe) || [];
+      if (numsAfter.length > 0) {
+        count = parseInt(numsAfter[numsAfter.length - 1]); // 取最后一个（最接近学科）
+      } else {
+        // 学科名前的数字
+        const beforeSubj = trimmed.slice(0, subjIdx);
+        const numsBefore = beforeSubj.match(numRe) || [];
+        count = numsBefore.length > 0 ? parseInt(numsBefore[numsBefore.length - 1]) : 0;
+      }
+
+      if (count > 0 && count < 500) {
+        const targetGrade = currentGrade || '初中'; // 默认初中
+        if (!results[targetGrade][subj]) results[targetGrade][subj] = 0;
+        results[targetGrade][subj] += count;
+        currentGrade = null; // 匹配后重置年级上下文
+      }
+    }
+  });
+
+  return results;
+}
+
+// 颜色分析兜底（无法 OCR 时使用）
+function colorAnalysisFallback(dataUrl, callback) {
+  const img = new Image();
+  img.onload = () => {
+    const canvas = document.createElement('canvas');
+    const scale = Math.min(1, 800 / img.width);
+    canvas.width = Math.round(img.width * scale);
+    canvas.height = Math.round(img.height * scale);
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+    const w = canvas.width, h = canvas.height;
+    const cellSize = 8;
+    const cols = Math.ceil(w / cellSize), rows = Math.ceil(h / cellSize);
+    let juniorCells = 0, seniorCells = 0;
+
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols; col++) {
+        let rS = 0, gS = 0, bS = 0, cnt = 0;
+        for (let dy = 0; dy < cellSize && row*cellSize+dy < h; dy++) {
+          for (let dx = 0; dx < cellSize && col*cellSize+dx < w; dx++) {
+            const px = ((row*cellSize+dy)*w + (col*cellSize+dx)) * 4;
+            rS += data[px]; gS += data[px+1]; bS += data[px+2]; cnt++;
+          }
+        }
+        if (!cnt) continue;
+        const [hue, sat, lit] = rgbToHsl(rS/cnt, gS/cnt, bS/cnt);
+        if (sat < 20 || lit < 18 || lit > 82) continue;
+        if (hue >= 90 && hue <= 175 && sat >= 25) juniorCells++;
+        else if (hue >= 28 && hue <= 68 && sat >= 28) seniorCells++;
+      }
+    }
+    const unit = 6;
+    const jCount = Math.min(99, Math.max(0, Math.round(juniorCells / unit)));
+    const sCount = Math.min(99, Math.max(0, Math.round(seniorCells / unit)));
+    callback(jCount, sCount);
+  };
+  img.src = dataUrl;
+}
+
+async function autoRecognize(dataUrl) {
+  const statusEl = document.getElementById('recogStatus');
+  if (!statusEl) return;
+  statusEl.innerHTML = '<span class="recog-spin">⏳</span> 正在初始化 OCR 模型…';
+
+  try {
+    const worker = await getTesseractWorker();
+    statusEl.innerHTML = '<span class="recog-spin">⏳</span> 正在识别文字…';
+
+    const { data: { text } } = await worker.recognize(dataUrl);
+
+    statusEl.innerHTML = '<span class="recog-spin">⏳</span> 正在解析内容…';
+
+    const parsed = parseOCRText(text);
+
+    // 检查是否有识别到有效数据
+    const hasJunior = Object.values(parsed.初中).some(v => v > 0);
+    const hasSenior = Object.values(parsed.高中).some(v => v > 0);
+
+    if (hasJunior || hasSenior) {
+      // OCR 成功：填充识别结果
+      modalCounts = makeEmptyCounts();
+      for (const [grade, subjMap] of Object.entries(parsed)) {
+        for (const [subj, cnt] of Object.entries(subjMap)) {
+          modalCounts[grade][subj] = Math.min(99, cnt);
+        }
+      }
+    } else {
+      // OCR 无结果，兜底颜色分析
+      statusEl.innerHTML = '<span class="recog-spin">⏳</span> 文字识别无结果，使用颜色分析…';
+      await new Promise(resolve => {
+        colorAnalysisFallback(dataUrl, (jCount, sCount) => {
+          modalCounts = makeEmptyCounts();
+          distributeToSubjects('初中', jCount);
+          distributeToSubjects('高中', sCount);
+          resolve();
+        });
+      });
+    }
+
+    buildModalSubjGrids();
+    document.getElementById('recogStatus').style.display = 'none';
+    document.getElementById('recogResultBox').style.display = 'block';
+
+  } catch(e) {
+    console.error('[OCR] 识别失败，兜底颜色分析', e);
+    statusEl.innerHTML = '<span class="recog-spin">⏳</span> 识别出错，尝试颜色分析…';
+    modalCounts = makeEmptyCounts();
+    await new Promise(resolve => {
+      colorAnalysisFallback(dataUrl, (jCount, sCount) => {
+        distributeToSubjects('初中', jCount);
+        distributeToSubjects('高中', sCount);
+        resolve();
+      });
+    });
+    buildModalSubjGrids();
+    document.getElementById('recogStatus').style.display = 'none';
+    document.getElementById('recogResultBox').style.display = 'block';
+  }
+}
+
+function distributeToSubjects(grade, total) {
+  const base = Math.floor(total / 5);
+  const rem  = total % 5;
+  SUBJECTS.forEach((subj, i) => {
+    modalCounts[grade][subj] = base + (i === 0 ? rem : 0);
+  });
+}
+
+function rgbToHsl(r, g, b) {
+  r /= 255; g /= 255; b /= 255;
+  const max = Math.max(r,g,b), min = Math.min(r,g,b);
+  let h = 0, s = 0, l = (max+min)/2;
+  if (max !== min) {
+    const d = max-min;
+    s = l > .5 ? d/(2-max-min) : d/(max+min);
+    switch(max) {
+      case r: h = ((g-b)/d + (g<b?6:0))/6; break;
+      case g: h = ((b-r)/d + 2)/6; break;
+      case b: h = ((r-g)/d + 4)/6; break;
+    }
+  }
+  return [Math.round(h*360), Math.round(s*100), Math.round(l*100)];
+}
+
+async function confirmScreenshot() {
+  const total = ['初中','高中'].reduce((s, g) =>
+    s + SUBJECTS.reduce((s2, subj) => s2 + (modalCounts[g][subj] || 0), 0), 0);
+  if (total === 0) { showToast('提示', '所有学科数量均为 0，请先填写数量', 'warning'); return; }
+
+  let targetDate = document.getElementById('recogDate').value;
+  if (!targetDate) {
+    const t = new Date();
+    targetDate = `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`;
+  }
+  const season = document.querySelector('#recogSeasonChips .sc-chip.active')?.dataset.season || '暑';
+
+  // 构建学科→设计师映射（DEFAULT_DESIGNER_SUBJECTS 反查）
+  const subjMap = getDesignerSubjects();
+  const subjToDesigner = {};
+  Object.entries(subjMap).forEach(([designer, subjs]) => {
+    subjs.forEach(s => { subjToDesigner[s] = designer; });
+  });
+
+  const promises = [];
+  const addedSummary = { 初中: {}, 高中: {} };
+  ['初中','高中'].forEach(grade => {
+    const subGradeEl = document.getElementById(grade === '初中' ? 'screenshotSubGradeJunior' : 'screenshotSubGradeSenior');
+    const subGrade = subGradeEl ? subGradeEl.value : '';
+    SUBJECTS.forEach(subj => {
+      const cnt = modalCounts[grade][subj] || 0;
+      if (cnt > 0) {
+        const designer = subjToDesigner[subj] || getDesignerBySubject(subj) || '';
+        promises.push(addEntry(targetDate, grade, subj, cnt, season, designer, subGrade));
+        if (!addedSummary[grade][designer]) addedSummary[grade][designer] = {};
+        if (!addedSummary[grade][designer][subj]) addedSummary[grade][designer][subj] = 0;
+        addedSummary[grade][designer][subj] += cnt;
+      }
+    });
+  });
+  await Promise.all(promises);
+
+  closeScreenshotModal();
+  buildCalendar();
+
+  const summary = ['初中','高中'].map(grade => {
+    const total = SUBJECTS.reduce((s, subj) => s + (modalCounts[grade][subj] || 0), 0);
+    if (total === 0) return null;
+    const lines = Object.entries(addedSummary[grade]).map(([designer, subjs]) => {
+      const parts = Object.entries(subjs).map(([subj, cnt]) => `${subj}${cnt}`).join('/');
+      return `👤 ${designer}：${parts}`;
+    }).join(' | ');
+    return `🏫 ${grade}(${total})：${lines}`;
+  }).filter(Boolean).join('<br>');
+  showToast('添加成功', `📅 日期：${targetDate}<br>📆 季节：${SEASON_LABELS[season]}<br><br>${summary}`);
+}
+
+/* ============================================================
+   手动输入弹窗
+============================================================ */
+function openManualModal() {
+  document.getElementById('manualModal').classList.add('open');
+  resetManualModal();
+}
+function closeManualModal() {
+  document.getElementById('manualModal').classList.remove('open');
+}
+function resetManualModal() {
+  const today = new Date();
+  document.getElementById('manualDate').value =
+    `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+  // 重置季节芯片
+  document.querySelectorAll('.sc-chip').forEach(c => c.classList.remove('active'));
+  const firstChip = document.querySelector('.sc-chip');
+  if (firstChip) firstChip.classList.add('active');
+  // 填充设计师下拉
+  const sel = document.getElementById('manualDesigner');
+  sel.innerHTML = getDesigners().map(d => `<option value="${d}">${d}</option>`).join('');
+  // 重置细分年级
+  document.getElementById('manualSubGradeJunior').value = '';
+  document.getElementById('manualSubGradeSenior').value = '';
+  buildManualSubjectGrids();
+  updateManualTotals();
+}
+function selectSeasonChip(btn) {
+  document.querySelectorAll('.sc-chip').forEach(c => c.classList.remove('active'));
+  btn.classList.add('active');
+}
+function buildManualSubjectGrids() {
+  ['初中','高中'].forEach(grade => {
+    const grid = document.getElementById(grade === '初中' ? 'manualJuniorSubjGrid' : 'manualSeniorSubjGrid');
+    grid.innerHTML = SUBJECTS.map(subj => `
+      <div class="recog-subj-row">
+        <span class="recog-subj-name" style="color:${SUBJ_COLORS[subj]}">
+          <span class="recog-dot" style="background:${SUBJ_DOTS[subj]}"></span>${subj}
+        </span>
+        <div class="recog-counter">
+          <button class="recog-counter-btn" onclick="manualChangeCount('${grade}','${subj}',-1)">−</button>
+          <span class="recog-counter-val" id="manual-${grade}-${subj}">0</span>
+          <button class="recog-counter-btn" onclick="manualChangeCount('${grade}','${subj}',1)">+</button>
+        </div>
+      </div>
+    `).join('');
+  });
+}
+function manualChangeCount(grade, subj, delta) {
+  const el = document.getElementById(`manual-${grade}-${subj}`);
+  const val = Math.max(0, parseInt(el.textContent || '0') + delta);
+  el.textContent = val;
+  updateManualTotals();
+}
+function updateManualTotals() {
+  ['初中','高中'].forEach(grade => {
+    const total = SUBJECTS.reduce((s, subj) => {
+      const el = document.getElementById(`manual-${grade}-${subj}`);
+      return s + (el ? parseInt(el.textContent || '0') : 0);
+    }, 0);
+    const id = grade === '初中' ? 'manualJuniorTotal' : 'manualSeniorTotal';
+    document.getElementById(id).textContent = total;
+  });
+}
+async function confirmManual() {
+  const total = ['初中','高中'].reduce((s, g) =>
+    s + SUBJECTS.reduce((s2, subj) => {
+      const el = document.getElementById(`manual-${g}-${subj}`);
+      return s2 + (el ? parseInt(el.textContent || '0') : 0);
+    }, 0), 0);
+  if (total === 0) { showToast('提示', '所有学科数量均为 0，请先填写数量', 'warning'); return; }
+
+  let targetDate = document.getElementById('manualDate').value;
+  if (!targetDate) {
+    const t = new Date();
+    targetDate = `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`;
+  }
+
+  const season = document.querySelector('.sc-chip.active')?.dataset.season || '暑';
+
+  // 学科→设计师映射
+  const subjMap = getDesignerSubjects();
+  const subjToDesigner = {};
+  Object.entries(subjMap).forEach(([designer, subjs]) => {
+    subjs.forEach(s => { subjToDesigner[s] = designer; });
+  });
+
+  const added = {};
+  const promises = [];
+  ['初中','高中'].forEach(grade => {
+    const subGradeEl = document.getElementById(grade === '初中' ? 'manualSubGradeJunior' : 'manualSubGradeSenior');
+    const subGrade = subGradeEl ? subGradeEl.value : '';
+    SUBJECTS.forEach(subj => {
+      const el = document.getElementById(`manual-${grade}-${subj}`);
+      const cnt = el ? parseInt(el.textContent || '0') : 0;
+      if (cnt > 0) {
+        const designer = subjToDesigner[subj] || getDesignerBySubject(subj) || '';
+        promises.push(addEntry(targetDate, grade, subj, cnt, season, designer, subGrade));
+        if (!added[grade]) added[grade] = {};
+        if (!added[grade][designer]) added[grade][designer] = [];
+        added[grade][designer].push(`${subj}${cnt}`);
+      }
+    });
+  });
+  await Promise.all(promises);
+
+  closeManualModal();
+  buildCalendar();
+
+  const seasonLabel = SEASON_LABELS[season];
+  const lines = ['初中','高中'].filter(g => added[g])
+    .map(g => {
+      const parts = Object.entries(added[g]).map(([designer, items]) =>
+        `👤 ${designer}：${items.join('/')}`).join(' | ');
+      return `🏫 ${g}：${parts}`;
+    }).join('<br>');
+  showToast('添加成功', `📅 日期：${targetDate}<br>📆 季节：${seasonLabel}<br><br>${lines}`);
+}
+
+async function addEntry(date, grade, subject, count, season, designer, subGrade) {
+  const entry = { id: Date.now() + Math.random(), date, grade, subject, count, season, designer, subGrade: subGrade || '' };
+  if (_cbReady) {
+    const cloudId = await cbAddEntry(entry);
+    if (cloudId) entry.id = cloudId;
+  }
+  entries.push(entry);
+  saveEntriesLocal();
+}
+
+/* ============================================================
+   导航
+============================================================ */
+function prevPeriod() {
+  if (currentView === 'week') {
+    currentWeekStart.setDate(currentWeekStart.getDate() - 7);
+  } else {
+    currentMonth--;
+    if (currentMonth < 1) { currentMonth = 12; currentYear--; }
+  }
+  buildCalendar();
+}
+function nextPeriod() {
+  if (currentView === 'week') {
+    currentWeekStart.setDate(currentWeekStart.getDate() + 7);
+  } else {
+    currentMonth++;
+    if (currentMonth > 12) { currentMonth = 1; currentYear++; }
+  }
+  buildCalendar();
+}
+function goToday() {
+  const t = new Date();
+  currentYear = t.getFullYear();
+  currentMonth = t.getMonth() + 1;
+  currentWeekStart = null;
+  buildCalendar();
+}
+
+/* ============================================================
+   导出 / Excel 导入
+============================================================ */
+function exportData() {
+  if (entries.length === 0) { showToast('提示', '没有数据可导出', 'warning'); return; }
+  const rows = [['日期','年级','学科','数量','季节','设计师']];
+  entries.forEach(e => rows.push([
+    e.date, e.grade, e.subject || '', e.count,
+    SEASON_LABELS[e.season] || e.season || '', e.designer || ''
+  ]));
+  const csv = rows.map(r => r.join(',')).join('\n');
+  const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = `排班统计_${new Date().toISOString().split('T')[0]}.csv`;
+  link.click();
+}
+
+/* ============================================================
+   Excel 批量导入（使用 SheetJS CDN）
+   规则：每一数据行 = 1 册，同一 日期+年级+学科+设计师 自动合并累计
+============================================================ */
+let importPreviewData = [];    // 最终待写入数据（合并后）
+let importRawData    = [];     // 原始行数据
+let importHeaders    = [];     // 表头列名
+
+// ── 入口：打开文件选择器 ──────────────────────────────────────
+function openImportModal() {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.xlsx,.xls,.csv';
+  input.onchange = (e) => { if (e.target.files[0]) parseExcelFile(e.target.files[0]); };
+  input.click();
+}
+
+// ── 第一步：解析文件，读取列头 ────────────────────────────────
+async function parseExcelFile(file) {
+  try {
+    showImportLoading(true);
+    const buffer = await file.arrayBuffer();
+    if (!window.XLSX) {
+      await loadScript('https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js');
+    }
+    const workbook = XLSX.read(buffer, { type: 'array' });
+    const sheetName = workbook.SheetNames[0];
+    const sheet = workbook.Sheets[sheetName];
+    const raw = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+    showImportLoading(false);
+    if (!raw || raw.length < 2) {
+      showToast('导入失败', '表格内容为空或只有表头', 'error'); return;
+    }
+    importHeaders = raw[0].map(h => String(h).trim());
+    importRawData = raw.slice(1).filter(r => r.some(c => c !== '' && c !== null && c !== undefined));
+    showImportMappingModal(file.name);
+  } catch (err) {
+    showImportLoading(false);
+    showToast('解析失败', '解析 Excel 失败：' + err.message, 'error');
+  }
+}
+
+// ── 第二步：字段映射弹窗 ──────────────────────────────────────
+function showImportMappingModal(fileName) {
+  const existing = document.getElementById('importMappingModal');
+  if (existing) existing.remove();
+
+  // 自动猜测列映射：关键词优先 → 列位置兜底
+  // 列顺序：学科=0, 年级=1, 版本=2, 讲次=3, 日期=4（5列，无设计师/季节）
+  const TOTAL_COLS = importHeaders.length;
+
+  function normalizeHeader(h) {
+    return String(h || '')
+      .replace(/[\[\]【】()（）、\s\u200b]/g, '')
+      .replace(/版社|科目|课程/g, '')
+      .toLowerCase();
+  }
+  function headerMatch(nh, keywords) {
+    for (const kw of keywords) {
+      const k = kw.toLowerCase();
+      if (nh === k) return true;
+      if (nh.replace(/^列?\d+/, '') === k) return true;
+      if (nh.includes(k)) return true;
+    }
+    return false;
+  }
+  function guess(keywords, fallbackPos) {
+    // 先关键词匹配
+    for (let i = 0; i < importHeaders.length; i++) {
+      const nh = normalizeHeader(importHeaders[i]);
+      if (headerMatch(nh, keywords)) return i;
+    }
+    // 列位置兜底（按固定顺序：学科/年级/版本/讲次/日期）
+    if (fallbackPos !== undefined && fallbackPos >= 0 && fallbackPos < TOTAL_COLS) return fallbackPos;
+    return '';
+  }
+
+  // 学科/年级/版本/讲次/日期 固定顺序兜底；关键词命中有则用关键词
+  const guessSubject  = guess(['学科','科目','subject','科','课程','文稿名称','文稿'], 0);
+  const guessGrade   = guess(['年级','grade','学段','类型','初高中','级别','阶段','初中','高中'], 1);
+  const guessVersion = guess(['版本','version','教材版本','版次','教版','出版社','版本信息'], 2);
+  const guessLesson  = guess(['讲次','讲','lesson','课次','第几讲','讲数','节次','第几课','讲编号'], 3);
+  const guessDate    = guess(['日期','交稿日期','完成日期','date','时间','提交时间','完成时间','截止日期'], 4);
+  // 季节/设计师：5列文件没有，用默认值
+  const guessSeason   = '';
+  const guessDesigner = '';
+
+  // 预览前3行原始数据
+  const previewRows = importRawData.slice(0, 3);
+  const previewTable = `
+    <table style="width:100%;border-collapse:collapse;font-size:12px;margin-top:8px;">
+      <thead>
+        <tr style="background:#f1f5f9;">
+          ${importHeaders.map(h => `<th style="padding:5px 8px;border:1px solid #e2e8f0;white-space:nowrap;">${h || '（空）'}</th>`).join('')}
+        </tr>
+      </thead>
+      <tbody>
+        ${previewRows.map(r => `<tr>${importHeaders.map((_, ci) =>
+          `<td style="padding:4px 8px;border:1px solid #f1f5f9;white-space:nowrap;max-width:120px;overflow:hidden;text-overflow:ellipsis;">${r[ci] ?? ''}</td>`
+        ).join('')}</tr>`).join('')}
+      </tbody>
+    </table>`;
+
+  // 检测摘要
+  const detected = [
+    { label:'日期', idx: guessDate, name: guessDate !== '' ? importHeaders[guessDate] : '' },
+    { label:'年级', idx: guessGrade, name: guessGrade !== '' ? importHeaders[guessGrade] : '' },
+    { label:'学科', idx: guessSubject, name: guessSubject !== '' ? importHeaders[guessSubject] : '' },
+    { label:'讲次', idx: guessLesson, name: guessLesson !== '' ? importHeaders[guessLesson] : '' },
+    { label:'版本', idx: guessVersion, name: guessVersion !== '' ? importHeaders[guessVersion] : '' },
+    { label:'季节', idx: guessSeason, name: guessSeason !== '' ? importHeaders[guessSeason] : '' },
+    { label:'设计师', idx: guessDesigner, name: guessDesigner !== '' ? importHeaders[guessDesigner] : '' },
+  ];
+  const okItems = detected.filter(d => d.idx !== '');
+  const missItems = detected.filter(d => d.idx === '');
+  const detectBanner = `
+    <div style="margin-bottom:12px;padding:10px 14px;background:#f0fdf4;border:1px solid #86efac;border-radius:8px;font-size:13px;line-height:1.9;">
+      <div style="font-weight:700;color:#166534;margin-bottom:4px;">🔍 自动检测结果</div>
+      ${okItems.map(d => `<span style="display:inline-block;margin:2px 4px 2px 0;">
+        <span style="display:inline-flex;align-items:center;gap:3px;background:#fff;border:1.5px solid #86efac;border-radius:100px;padding:1px 8px;font-size:12px;color:#166534;">
+          ✅ <b>${d.label}</b>：<span style="color:#64748b;">"${d.name || '列'+(d.idx*1+1)}"</span>
+        </span>
+      </span>`).join('')}
+      ${missItems.length > 0 ? `<div style="margin-top:4px;color:#b45309;font-size:12px;">⚠️ 未检测到：${missItems.map(d=>d.label).join('、')} — 请在下拉框中手动选择对应列</div>` : ''}
+    </div>`;
+
+  const selStyle = 'width:100%;padding:7px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;background:#fff;cursor:pointer;';
+  const rowStyle = 'display:flex;align-items:center;gap:12px;margin-bottom:10px;';
+  const labelStyle = 'font-size:13px;font-weight:600;color:#374151;white-space:nowrap;min-width:80px;';
+  const badgeStyle = (color) => `display:inline-block;padding:2px 8px;border-radius:100px;font-size:11px;font-weight:700;background:${color}22;color:${color};margin-left:4px;`;
+  // autoDetectMarker: 给已自动检测到的选项加提示
+  const autoMark = (idx) => idx !== '' && idx !== null ? ' 🔎' : '';
+
+  const modal = document.createElement('div');
+  modal.id = 'importMappingModal';
+  modal.className = 'modal-overlay open';
+  modal.innerHTML = `
+    <div class="modal" style="max-width:700px;">
+      <div class="modal-header">
+        <div class="modal-title">📋 字段映射配置</div>
+        <button class="modal-close" onclick="document.getElementById('importMappingModal').remove()">×</button>
+      </div>
+      <div class="modal-body" style="overflow-y:auto;">
+
+        <!-- 文件信息 -->
+        <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:13px;color:#0369a1;">
+          📄 <b>${fileName}</b> &nbsp;·&nbsp; ${importHeaders.length} 列 &nbsp;·&nbsp; ${importRawData.length} 行数据
+          &nbsp;·&nbsp; <span style="color:#059669;font-weight:700;">每行 = 1 册，同日期+年级+学科自动合并累计</span>
+        </div>
+
+        <!-- 🔍 自动检测摘要 -->
+        ${detectBanner}
+
+        <!-- 表格原始预览 -->
+        <div style="margin-bottom:14px;">
+          <div style="font-size:12px;font-weight:600;color:#64748b;margin-bottom:4px;">📊 原始数据预览（前3行）</div>
+          <div style="overflow-x:auto;">${previewTable}</div>
+        </div>
+
+        <!-- 字段映射选择 -->
+        <div style="background:#fafafa;border:1px solid #e2e8f0;border-radius:10px;padding:14px 16px;margin-bottom:14px;">
+          <div style="font-size:13px;font-weight:700;color:#1e293b;margin-bottom:12px;">🗂 将表格列与系统字段对应</div>
+
+          <!-- 必填字段 -->
+          <div style="font-size:11px;font-weight:700;color:#ef4444;letter-spacing:.5px;margin-bottom:8px;">▌ 必填字段</div>
+          <div style="${rowStyle}">
+            <span style="${labelStyle}">📅 日期 <span style="${badgeStyle('#ef4444')}">必填</span></span>
+            <select id="map_date" style="${selStyle}">${makeSelOptions(guessDate, 'date')}</select>
+          </div>
+          <div style="${rowStyle}">
+            <span style="${labelStyle}">🏫 年级 <span style="${badgeStyle('#ef4444')}">必填</span></span>
+            <select id="map_grade" style="${selStyle}">${makeSelOptions(guessGrade, 'grade')}</select>
+          </div>
+          <div style="${rowStyle}">
+            <span style="${labelStyle}">📚 学科 <span style="${badgeStyle('#ef4444')}">必填</span></span>
+            <select id="map_subject" style="${selStyle}">${makeSelOptions(guessSubject, 'subject')}</select>
+          </div>
+
+          <div style="border-top:1px dashed #e2e8f0;margin:10px 0;"></div>
+          <!-- 推荐字段 -->
+          <div style="font-size:11px;font-weight:700;color:#f59e0b;letter-spacing:.5px;margin-bottom:8px;">▌ 推荐填写（识别后存入备注）</div>
+          <div style="${rowStyle}">
+            <span style="${labelStyle}">📖 讲次 <span style="${badgeStyle('#f59e0b')}">推荐</span></span>
+            <select id="map_lesson" style="${selStyle}">${makeSelOptions(guessLesson, 'lesson')}</select>
+          </div>
+          <div style="${rowStyle}">
+            <span style="${labelStyle}">📘 版本 <span style="${badgeStyle('#f59e0b')}">推荐</span></span>
+            <select id="map_version" style="${selStyle}">${makeSelOptions(guessVersion, 'version')}</select>
+          </div>
+
+          <div style="border-top:1px dashed #e2e8f0;margin:10px 0;"></div>
+          <!-- 选填字段 -->
+          <div style="font-size:11px;font-weight:700;color:#64748b;letter-spacing:.5px;margin-bottom:8px;">▌ 选填字段</div>
+          <div style="${rowStyle}">
+            <span style="${labelStyle}">🍂 季节 <span style="${badgeStyle('#64748b')}">选填</span></span>
+            <select id="map_season" style="${selStyle}">${makeSelOptions(guessSeason, 'season')}</select>
+          </div>
+          <div style="${rowStyle}">
+            <span style="${labelStyle}">👤 设计师 <span style="${badgeStyle('#64748b')}">选填</span></span>
+            <select id="map_designer" style="${selStyle}">${makeSelOptions(guessDesigner, 'designer')}</select>
+          </div>
+
+
+        </div>
+
+      </div>
+      <div id="mappingErrorBox" style="display:none;margin:0 0 12px;padding:10px 14px;background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;font-size:12px;color:#dc2626;line-height:1.7;"></div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" onclick="document.getElementById('importMappingModal').remove()">取消</button>
+        <div style="flex:1;"></div>
+        <button class="btn btn-primary" onclick="applyImportMapping()">下一步：预览数据 →</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+}
+
+// 生成 select 选项（带自动检测标记，已检测列带 🔎 前缀）
+function makeSelOptions(guessIdx, label) {
+  const opts = [{ label: '（不导入此字段）', val: '', detected: false }];
+  importHeaders.forEach((h, i) => {
+    const isAutoDetected = String(i) === String(guessIdx) && guessIdx !== '' && guessIdx !== null;
+    opts.push({ label: `列${i+1}：${h || '（无标题）'}${isAutoDetected ? ' 🔎' : ''}`, val: String(i), detected: isAutoDetected });
+  });
+  return opts.map(o => `<option value="${o.val}"${String(o.val) === String(guessIdx) && String(guessIdx) !== '' ? ' selected' : ''}>${o.label}</option>`).join('');
+}
+
+// ── 第三步：根据映射解析 → 合并累计 → 预览弹窗 ───────────────
+function applyImportMapping() {
+  const getCol = (id) => { const v = document.getElementById(id).value; return v === '' ? null : parseInt(v); };
+  const colDate     = getCol('map_date'),   colGrade   = getCol('map_grade');
+  const colSubject  = getCol('map_subject');
+  const colLesson   = getCol('map_lesson'), colVersion = getCol('map_version');
+  const colSeason   = getCol('map_season'), colDesigner= getCol('map_designer');
+  const defSeason   = '暑';
+
+  // 学科→设计师映射（根据学科自动匹配设计师）
+  const subjMap = getDesignerSubjects();
+  const subjToDesigner = {};
+  Object.entries(subjMap).forEach(([designer, subjs]) => {
+    subjs.forEach(s => { subjToDesigner[s] = designer; });
+  });
+
+  if (colDate === null || colGrade === null || colSubject === null) {
+    showToast('请完善映射', '日期、年级、学科为必填字段，请选择对应列', 'warning'); return;
+  }
+
+  // ── 逐行解析，每行计1；按 日期+年级+学科+设计师 分组合并 ──
+  const mergeMap = {};   // key → merged entry
+  const errors = [];
+  importRawData.forEach((row, ri) => {
+    const date     = normalizeDate(row[colDate]);
+    const grade    = normalizeGrade(row[colGrade]);
+    const subject  = normalizeSubject(row[colSubject]);
+    const season   = colSeason   !== null ? normalizeSeason(row[colSeason])  : defSeason;
+    // 设计师与学科强关联：根据学科自动匹配，忽略Excel中的设计师列
+    const designer = subjToDesigner[subject] || '';
+    const lesson   = colLesson   !== null ? String(row[colLesson]  || '').trim() : '';
+    const version  = colVersion  !== null ? String(row[colVersion] || '').trim() : '';
+    const subGrade = normalizeSubGrade(row[colGrade]);
+
+    if (!date)  { errors.push(`第${ri+2}行：日期无法解析（"${row[colDate]}"）`); return; }
+    if (!grade) { errors.push(`第${ri+2}行：年级无法识别（"${row[colGrade]}"）`); return; }
+
+    // 合并 key：日期 + 年级 + 学科 + 季节 + 版本 + 讲次 + 细分年级（保留完整对应关系）
+    const key = `${date}||${grade}||${subject}||${season}||${version}||${lesson}||${subGrade}`;
+    if (mergeMap[key]) {
+      mergeMap[key].count += 1;
+      // 记录讲次/版本信息（去重追加）
+      if (lesson && !mergeMap[key]._lessons.includes(lesson)) mergeMap[key]._lessons.push(lesson);
+      if (version && !mergeMap[key]._versions.includes(version)) mergeMap[key]._versions.push(version);
+    } else {
+      mergeMap[key] = {
+        id: Date.now() + Math.random(),
+        date, grade, subject, count: 1, season, designer, subGrade,
+        _lessons: lesson ? [lesson] : [],
+        _versions: version ? [version] : [],
+      };
+    }
+  });
+
+  // 整理成数组，按日期排序
+  importPreviewData = Object.values(mergeMap).map(e => ({
+    ...e,
+    lesson : e._lessons.join('/'),
+    version: e._versions.join('/'),
+  })).sort((a, b) => a.date.localeCompare(b.date));
+
+  if (importPreviewData.length === 0) {
+    // 不关弹窗，在弹窗内显示错误详情，方便用户重新选列
+    const errContainer = document.getElementById('mappingErrorBox');
+    const errMsg = errors.length > 0
+      ? `<b>全部 ${errors.length} 行解析失败，无法生成预览：</b><br>${errors.slice(0,8).join('<br>')}${errors.length > 8 ? `<br>…还有 ${errors.length-8} 处` : ''}`
+      : '未解析到有效数据，请检查字段映射是否正确';
+    if (errContainer) {
+      errContainer.innerHTML = errMsg;
+      errContainer.style.display = 'block';
+      errContainer.scrollIntoView({ behavior:'smooth', block:'nearest' });
+    } else {
+      showToast('解析失败', errMsg, 'error');
+    }
+    return;
+  }
+
+  document.getElementById('importMappingModal').remove();
+  showImportPreviewModal(importPreviewData, errors);
+}
+
+// ── 第四步：预览弹窗 ──────────────────────────────────────────
+function showImportPreviewModal(data, errors = []) {
+  const existing = document.getElementById('importPreviewModal');
+  if (existing) existing.remove();
+
+  const byDesigner = {};
+  data.forEach(e => { byDesigner[e.designer] = byDesigner[e.designer] || []; byDesigner[e.designer].push(e); });
+  const totalCount = data.reduce((s, e) => s + e.count, 0);
+  const rawTotal   = importRawData.length - errors.length;
+  const designerSummary = Object.entries(byDesigner).map(([d, arr]) => {
+    const cnt = arr.reduce((s, e) => s + e.count, 0);
+    return `${d}（${cnt}册）`;
+  }).join(' / ');
+
+  const errHtml = errors.length > 0 ? `
+    <div style="margin-bottom:12px;padding:10px 14px;background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;font-size:12px;color:#dc2626;">
+      ⚠️ <b>跳过了 ${errors.length} 行</b>（数据无效）：${errors.slice(0,3).join('；')}${errors.length > 3 ? '…' : ''}
+    </div>` : '';
+
+  const modal = document.createElement('div');
+  modal.id = 'importPreviewModal';
+  modal.className = 'modal-overlay open';
+  modal.innerHTML = `
+    <div class="modal" style="max-width:980px;">
+      <div class="modal-header">
+        <div class="modal-title">📥 导入预览 — ${rawTotal} 行原始数据 → 合并为 ${data.length} 条 / 共 ${totalCount} 册</div>
+        <button class="modal-close" onclick="document.getElementById('importPreviewModal').remove()">×</button>
+      </div>
+      <div class="modal-body" style="max-height:60vh;overflow-y:auto;">
+        ${errHtml}
+        <div style="margin-bottom:12px;padding:10px 14px;background:#f0f9ff;border-radius:8px;font-size:13px;color:#0369a1;">
+          👤 ${designerSummary}
+        </div>
+        <table style="width:100%;border-collapse:collapse;font-size:13px;">
+          <thead>
+            <tr style="background:#f1f5f9;position:sticky;top:0;">
+              <th style="padding:8px 10px;text-align:left;border-bottom:1px solid #e2e8f0;">日期</th>
+              <th style="padding:8px 10px;text-align:left;border-bottom:1px solid #e2e8f0;">年级</th>
+              <th style="padding:8px 10px;text-align:left;border-bottom:1px solid #e2e8f0;">细分</th>
+              <th style="padding:8px 10px;text-align:left;border-bottom:1px solid #e2e8f0;">学科</th>
+              <th style="padding:8px 10px;text-align:right;border-bottom:1px solid #e2e8f0;">数量</th>
+              <th style="padding:8px 10px;text-align:center;border-bottom:1px solid #e2e8f0;">季节</th>
+              <th style="padding:8px 10px;text-align:left;border-bottom:1px solid #e2e8f0;">讲次</th>
+              <th style="padding:8px 10px;text-align:left;border-bottom:1px solid #e2e8f0;">版本</th>
+              <th style="padding:8px 10px;text-align:left;border-bottom:1px solid #e2e8f0;">设计师</th>
+              <th style="padding:8px 10px;text-align:center;border-bottom:1px solid #e2e8f0;width:60px;">操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${data.map((e, idx) => `
+              <tr id="irow_${idx}" style="border-bottom:1px solid #f1f5f9;">
+                <td style="padding:6px 10px;" id="td_date_${idx}">${formatDateCN(e.date)}</td>
+                <td style="padding:6px 10px;color:${e.grade==='初中'?'#059669':'#d97706'};font-weight:600;" id="td_grade_${idx}">${e.grade}</td>
+                <td style="padding:6px 10px;color:#d97706;font-weight:600;font-size:12px;" id="td_subGrade_${idx}">${e.subGrade || '—'}</td>
+                <td style="padding:6px 10px;" id="td_subject_${idx}">${e.subject}</td>
+                <td style="padding:6px 10px;text-align:right;font-weight:700;color:#1e293b;" id="td_count_${idx}">${e.count}</td>
+                <td style="padding:6px 10px;text-align:center;" id="td_season_${idx}"><span style="padding:2px 8px;border-radius:100px;font-size:11px;font-weight:600;background:${SEASON_BG[e.season]};color:${SEASON_COLORS[e.season]};">${e.season}</span></td>
+                <td style="padding:6px 10px;color:#64748b;font-size:12px;" id="td_lesson_${idx}">${e.lesson || '—'}</td>
+                <td style="padding:6px 10px;color:#64748b;font-size:12px;" id="td_version_${idx}">${e.version || '—'}</td>
+                <td style="padding:6px 10px;" id="td_designer_${idx}">${getDesignerBySubject(e.subject) || '—'}</td>
+                <td style="padding:6px 10px;text-align:center;">
+                  <button onclick="openImportRowEdit(${idx})" style="padding:3px 8px;border:1px solid #e2e8f0;border-radius:6px;background:#fff;cursor:pointer;font-size:12px;color:#4f6ef7;">✏️ 编辑</button>
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" onclick="document.getElementById('importPreviewModal').remove();showImportMappingModal('重新配置')">← 返回修改映射</button>
+        <div style="flex:1;"></div>
+        <button class="btn btn-ghost" onclick="document.getElementById('importPreviewModal').remove()">取消</button>
+        <button class="btn btn-primary" onclick="confirmImport()">✅ 确认导入 ${data.length} 条 / ${totalCount} 册</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+}
+
+// ── 编辑导入预览中的单行 ──────────────────────────────────────
+let editingImportIdx = -1;
+
+function openImportRowEdit(idx) {
+  const e = importPreviewData[idx];
+  if (!e) return;
+  editingImportIdx = idx;
+
+  const existing = document.getElementById('importRowEditModal');
+  if (existing) existing.remove();
+
+  const selStyle = 'width:100%;padding:7px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;background:#fff;';
+  const rowStyle = 'display:flex;align-items:center;gap:10px;margin-bottom:10px;';
+  const labelStyle = 'font-size:13px;font-weight:600;color:#374151;white-space:nowrap;min-width:56px;';
+
+  const modal = document.createElement('div');
+  modal.id = 'importRowEditModal';
+  modal.className = 'modal-overlay open';
+  modal.innerHTML = `
+    <div class="modal" style="max-width:520px;">
+      <div class="modal-header">
+        <div class="modal-title">✏️ 编辑记录（第 ${idx + 1} 条）</div>
+        <button class="modal-close" onclick="document.getElementById('importRowEditModal').remove()">×</button>
+      </div>
+      <div class="modal-body">
+        <div style="${rowStyle}">
+          <span style="${labelStyle}">📅 日期</span>
+          <input type="date" id="iedit_date" value="${e.date}" style="${selStyle}" title="${formatDateCN(e.date)}" />
+        </div>
+        <div style="${rowStyle}">
+          <span style="${labelStyle}">🏫 年级</span>
+          <select id="iedit_grade" style="${selStyle}">
+            <option value="初中"${e.grade==='初中'?' selected':''}>初中</option>
+            <option value="高中"${e.grade==='高中'?' selected':''}>高中</option>
+          </select>
+        </div>
+        <div style="${rowStyle}">
+          <span style="${labelStyle}">📚 学科</span>
+          <select id="iedit_subject" style="${selStyle}">
+            ${SUBJECTS.map(s => `<option value="${s}"${e.subject===s?' selected':''}>${s}</option>`).join('')}
+          </select>
+        </div>
+        <div style="${rowStyle}">
+          <span style="${labelStyle}">🔢 数量</span>
+          <input type="number" id="iedit_count" value="${e.count}" min="1" style="${selStyle}width:80px;" />
+        </div>
+        <div style="${rowStyle}">
+          <span style="${labelStyle}">📆 季节</span>
+          <select id="iedit_season" style="${selStyle}">
+            ${SEASONS.map(s => `<option value="${s}"${e.season===s?' selected':''}>${s}</option>`).join('')}
+          </select>
+        </div>
+        <div style="${rowStyle}">
+          <span style="${labelStyle}">👤 设计师</span>
+          <input type="text" id="iedit_designer" value="${getDesignerBySubject(e.subject) || '—'}" readonly style="${selStyle}background:#f8fafc;color:#64748b;cursor:not-allowed;" title="设计师与学科强关联，不可手动修改" />
+        </div>
+        <div style="${rowStyle}">
+          <span style="${labelStyle}">📖 讲次</span>
+          <input type="text" id="iedit_lesson" value="${e.lesson || ''}" placeholder="如：第1讲" style="${selStyle}" />
+        </div>
+        <div style="${rowStyle}">
+          <span style="${labelStyle}">📘 版本</span>
+          <input type="text" id="iedit_version" value="${e.version || ''}" placeholder="如：人教版" style="${selStyle}" />
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" style="border:1px solid #fca5a5;background:#fef2f2;color:#dc2626;" onclick="deleteImportRow(${idx})">🗑 删除此行</button>
+        <div style="flex:1;"></div>
+        <button class="btn btn-ghost" onclick="document.getElementById('importRowEditModal').remove()">取消</button>
+        <button class="btn btn-primary" onclick="saveImportRowEdit()">💾 保存</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+}
+
+function saveImportRowEdit() {
+  const idx = editingImportIdx;
+  if (idx < 0 || idx >= importPreviewData.length) return;
+  const date     = document.getElementById('iedit_date').value;
+  const grade    = document.getElementById('iedit_grade').value;
+  const subject  = document.getElementById('iedit_subject').value;
+  const count    = parseInt(document.getElementById('iedit_count').value) || 1;
+  const season   = document.getElementById('iedit_season').value;
+  const lesson   = document.getElementById('iedit_lesson').value.trim();
+  const version  = document.getElementById('iedit_version').value.trim();
+  // 设计师与学科强关联：根据学科自动匹配
+  const designer = getDesignerBySubject(subject) || '';
+
+  if (!date) { showToast('提示', '日期不能为空', 'warning'); return; }
+
+  importPreviewData[idx] = {
+    ...importPreviewData[idx],
+    date, grade, subject, count, season, designer, lesson, version
+  };
+
+  // 回填预览表格
+  const row = document.getElementById(`irow_${idx}`);
+  if (row) {
+    document.getElementById(`td_date_${idx}`).textContent = formatDateCN(date);
+    document.getElementById(`td_grade_${idx}`).textContent = grade;
+    document.getElementById(`td_grade_${idx}`).style.color = grade === '初中' ? '#059669' : '#d97706';
+    document.getElementById(`td_subject_${idx}`).textContent = subject;
+    document.getElementById(`td_count_${idx}`).textContent = count;
+    document.getElementById(`td_season_${idx}`).innerHTML = `<span style="padding:2px 8px;border-radius:100px;font-size:11px;font-weight:600;background:${SEASON_BG[season]};color:${SEASON_COLORS[season]};">${season}</span>`;
+    document.getElementById(`td_lesson_${idx}`).textContent = lesson || '—';
+    document.getElementById(`td_version_${idx}`).textContent = version || '—';
+    document.getElementById(`td_designer_${idx}`).textContent = getDesignerBySubject(subject) || '—';
+  }
+
+  document.getElementById('importRowEditModal').remove();
+  editingImportIdx = -1;
+  showToast('已保存', '修改已更新');
+}
+
+function deleteImportRow(idx) {
+  importPreviewData.splice(idx, 1);
+  const row = document.getElementById(`irow_${idx}`);
+  if (row) row.remove();
+  document.getElementById('importRowEditModal').remove();
+  editingImportIdx = -1;
+  showToast('已删除', '该条记录已从导入列表中移除');
+}
+
+async function confirmImport() {
+  if (importPreviewData.length === 0) { showToast('提示', '没有可导入的数据', 'warning'); return; }
+  const count = importPreviewData.length;
+  const total = importPreviewData.reduce((s, e) => s + e.count, 0);
+  const toSave = importPreviewData.map(({ _lessons, _versions, ...rest }) => rest);
+
+  // 云端写入
+  let cloudErrors = [];
+  if (_cbReady) {
+    cloudErrors = await cbAddEntries(toSave);
+    if (cloudErrors.length > 0) {
+      showToast('云端写入异常', `共 ${count} 条，其中 ${cloudErrors.length} 条写入云端失败，已保存到本地`, 'warning');
+    } else {
+      showToast('导入成功', `已导入 ${count} 条记录，共 ${total} 册！`, 'success');
+    }
+  } else {
+    showToast('导入成功（本地）', `CloudBase 未连接，${count} 条记录已保存到本地浏览器`, 'warning');
+  }
+
+  entries.push(...toSave);
+  saveEntriesLocal();
+  importPreviewData = [];
+  const modal = document.getElementById('importPreviewModal');
+  if (modal) modal.remove();
+  buildCalendar();
+}
+
+function normalizeDate(val) {
+  if (!val) return '';
+  if (typeof val === 'number') {
+    // Excel 日期序列号（UTC 修正）
+    const d = new Date(Math.round((val - 25569) * 86400 * 1000));
+    const y = d.getUTCFullYear(), mo = d.getUTCMonth()+1, da = d.getUTCDate();
+    return `${y}-${String(mo).padStart(2,'0')}-${String(da).padStart(2,'0')}`;
+  }
+  const s = String(val).trim();
+  // 匹配常见日期格式：2026-5-9 / 2026/5/9 / 2026年5月9日
+  const m = s.match(/(\d{2,4})[年\-\/\.](\d{1,2})[月\-\/\.](\d{1,2})/);
+  if (m) {
+    let year = m[1];
+    // 2位年份 → 视为 20xx（如 26 → 2026）
+    if (year.length === 2) year = '20' + year;
+    return `${year}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}`;
+  }
+  // 最后尝试 Date 解析
+  const d = new Date(s);
+  if (!isNaN(d.getTime())) return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  return '';
+}
+// 日期显示格式化：2026-04-27 → 2026年4月27日
+function formatDateCN(dateStr) {
+  if (!dateStr) return '—';
+  const m = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (m) return `${m[1]}年${parseInt(m[2])}月${parseInt(m[3])}日`;
+  return dateStr;
+}
+function normalizeGrade(val) {
+  const s = String(val || '').trim();
+  // 数字代码
+  if (s === '1' || s === '01') return '初中';
+  if (s === '2' || s === '02') return '高中';
+  // 初一/初二/初三/初中 及英文
+  if (/初[一二三\d中]|junior|middle|7年|8年|9年/.test(s)) return '初中';
+  // 高一/高二/高三/高中 及英文
+  if (/高[一二三\d中]|senior|high|10年|11年|12年/.test(s)) return '高中';
+  return '';
+}
+function normalizeSubGrade(val) {
+  const s = String(val || '').trim();
+  if (/初[一1]/.test(s)) return '初一';
+  if (/初[二2]/.test(s)) return '初二';
+  if (/初[三3]/.test(s)) return '初三';
+  if (/高[一1]/.test(s)) return '高一';
+  if (/高[二2]/.test(s)) return '高二';
+  if (/高[三3]/.test(s)) return '高三';
+  return '';
+}
+function normalizeSubject(val) {
+  const s = String(val || '').trim();
+  // 全名或简称映射
+  const aliasMap = {
+    '语文':['语文','语','chinese','语文科'],
+    '数学':['数学','数','math','数学科'],
+    '英语':['英语','英','english','英语科'],
+    '物理':['物理','物','physics','理'],
+    '化学':['化学','化','chemistry','化学科'],
+  };
+  for (const [subj, aliases] of Object.entries(aliasMap)) {
+    if (aliases.some(a => s.toLowerCase().includes(a.toLowerCase()))) return subj;
+  }
+  // 回退到 SUBJECTS 第一个
+  return SUBJECTS[0];
+}
+function normalizeSeason(val) {
+  const s = String(val || '').trim();
+  if (s.includes('暑')) return '暑';
+  if (s.includes('秋')) return '秋';
+  if (s.includes('春')) return '春';
+  if (s.includes('寒')) return '寒';
+  return '暑';
+}
+
+function showImportLoading(show) {
+  if (show) {
+    const overlay = document.createElement('div');
+    overlay.id = 'importLoading';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:9999;display:flex;align-items:center;justify-content:center;';
+    overlay.innerHTML = '<div style="background:#fff;padding:24px 40px;border-radius:12px;font-size:15px;text-align:center;">⏳ 正在解析 Excel，请稍候…</div>';
+    document.body.appendChild(overlay);
+  } else {
+    const el = document.getElementById('importLoading');
+    if (el) el.remove();
+  }
+}
+
+function loadScript(src) {
+  return new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = src; s.onload = resolve; s.onerror = reject;
+    document.head.appendChild(s);
+  });
+}
+
+/* ============================================================
+   文件输入 / 拖拽 / 粘贴
+============================================================ */
+document.getElementById('fileInput').onchange = (e) => {
+  if (e.target.files.length > 0) handleImageUpload(e.target.files[0]);
+};
+const screenshotArea = document.getElementById('screenshotArea');
+screenshotArea.ondragover = (e) => { e.preventDefault(); screenshotArea.style.borderColor = 'var(--color-primary)'; };
+screenshotArea.ondragleave = () => { screenshotArea.style.borderColor = ''; };
+screenshotArea.ondrop = (e) => {
+  e.preventDefault(); screenshotArea.style.borderColor = '';
+  if (e.dataTransfer.files.length > 0) handleImageUpload(e.dataTransfer.files[0]);
+};
+document.addEventListener('paste', (e) => {
+  for (let item of e.clipboardData.items) {
+    if (item.type.startsWith('image/')) {
+      const file = item.getAsFile();
+      if (file) { openScreenshotModal(); setTimeout(() => handleImageUpload(file), 100); }
+    }
+  }
+});
+
+/* ============================================================
+   编辑当天数据弹窗
+============================================================ */
+let editDayContext = { date: '', grade: '' };
+
+function openEditDayModal(date, grade) {
+  editDayContext = { date, grade };
+  document.getElementById('editDayModal').classList.add('open');
+
+  // 设置标题
+  const gradeName = grade === '初中' ? '🏫 初中' : '🏫 高中';
+  const gradeClass = grade === '初中' ? 'junior' : 'senior';
+  document.getElementById('editDayGradeName').textContent = gradeName;
+  document.getElementById('editDayGradeHead').className = `recog-grade-head ${gradeClass}`;
+  document.getElementById('editDayTitle').textContent = `✏️ 编辑 ${date} ${grade}`;
+
+  // 获取当前数据
+  const dayEntries = entries.filter(e => e.date === date && e.grade === grade);
+  const dayCounts = {};
+  SUBJECTS.forEach(s => dayCounts[s] = 0);
+  dayEntries.forEach(e => { if (dayCounts[e.subject] !== undefined) dayCounts[e.subject] += e.count; });
+
+  // 构建学科网格
+  const grid = document.getElementById('editDaySubjGrid');
+  grid.innerHTML = SUBJECTS.map(subj => `
+    <div class="recog-subj-cell">
+      <div class="recog-subj-label">
+        <span class="subj-dot" style="background:${SUBJ_DOTS[subj]};"></span>
+        <span style="color:${SUBJ_COLORS[subj]};font-weight:700;">${subj}</span>
+      </div>
+      <div class="recog-counter">
+        <button class="recog-counter-btn" onclick="editDayChangeCount('${subj}',-1)">−</button>
+        <span class="recog-counter-val" id="editSubj_${subj}">${dayCounts[subj]}</span>
+        <button class="recog-counter-btn" onclick="editDayChangeCount('${subj}',1)">+</button>
+      </div>
+    </div>
+  `).join('');
+
+  updateEditDayTotal();
+}
+
+function editDayChangeCount(subj, delta) {
+  const el = document.getElementById(`editSubj_${subj}`);
+  const val = Math.max(0, parseInt(el.textContent || '0') + delta);
+  el.textContent = val;
+  updateEditDayTotal();
+}
+
+function updateEditDayTotal() {
+  const total = SUBJECTS.reduce((s, subj) => {
+    const el = document.getElementById(`editSubj_${subj}`);
+    return s + (el ? parseInt(el.textContent || '0') : 0);
+  }, 0);
+  document.getElementById('editDayGradeTotal').textContent = total;
+}
+
+function closeEditDayModal() {
+  document.getElementById('editDayModal').classList.remove('open');
+}
+
+async function confirmEditDay() {
+  const { date, grade } = editDayContext;
+
+  // 删除该日期该年级的旧数据（云端+本地）
+  const toDelete = entries.filter(e => e.date === date && e.grade === grade);
+  if (_cbReady) await cbRemoveWhere(toDelete);
+  entries = entries.filter(e => !(e.date === date && e.grade === grade));
+
+  // 添加新数据
+  const season = currentSeason === '全部' ? '暑' : currentSeason;
+  const promises = [];
+
+  SUBJECTS.forEach(subj => {
+    const el = document.getElementById(`editSubj_${subj}`);
+    const count = el ? parseInt(el.textContent || '0') : 0;
+    if (count > 0) {
+      const designer = getDesignerBySubject(subj) || '';
+      promises.push(addEntry(date, grade, subj, count, season, designer, ''));
+    }
+  });
+  await Promise.all(promises);
+
+  closeEditDayModal();
+  buildCalendar();
+  showToast('保存成功', '数据已更新');
+}
+
+async function deleteDayData() {
+  const { date, grade } = editDayContext;
+  showConfirm(`确定删除 ${date} ${grade} 的所有数据？`, async () => {
+    const toDelete = entries.filter(e => e.date === date && e.grade === grade);
+    if (_cbReady) await cbRemoveWhere(toDelete);
+    entries = entries.filter(e => !(e.date === date && e.grade === grade));
+    saveEntriesLocal();
+    closeEditDayModal();
+    buildCalendar();
+    showToast('已删除', '数据已删除');
+  });
+}
+
+// 清空某一天所有年级数据（快速删除）
+function clearDayData(dateStr) {
+  showConfirm(`确定清空 <b>${dateStr}</b> 全天的所有数据？`, async () => {
+    const before = entries.length;
+    const toDelete = entries.filter(e => e.date === dateStr);
+    if (_cbReady) await cbRemoveWhere(toDelete);
+    entries = entries.filter(e => e.date !== dateStr);
+    saveEntriesLocal();
+    buildCalendar();
+    const dayModal = document.getElementById('dayDetailModal');
+    if (dayModal) dayModal.remove();
+    showToast('已清空', `已删除 ${before - entries.length} 条记录`);
+  });
+}
+
+// 清空整月数据
+function clearMonthData() {
+  const year = currentYear;
+  const month = String(currentMonth).padStart(2, '0');
+  const monthPrefix = `${year}-${month}`;
+  const monthEntries = entries.filter(e => e.date.startsWith(monthPrefix));
+  if (monthEntries.length === 0) {
+    showToast('提示', '当前月份没有数据', 'warning');
+    return;
+  }
+  showConfirm(`确定清空 <b>${year}年${currentMonth}月</b> 的所有数据？<br>共 ${monthEntries.length} 条记录，${monthEntries.reduce((s, e) => s + e.count, 0)} 册`, async () => {
+    const before = entries.length;
+    const toDelete = entries.filter(e => e.date.startsWith(monthPrefix));
+    if (_cbReady) await cbRemoveWhere(toDelete);
+    entries = entries.filter(e => !e.date.startsWith(monthPrefix));
+    saveEntriesLocal();
+    buildCalendar();
+    showToast('已清空', `已删除 ${before - entries.length} 条记录`);
+  });
+}
+
+/* ============================================================
+   管理设计师弹窗
+============================================================ */
+let designerBatchMode = false;
+let designerSelected = {}; // index → true/false
+
+function openDesignerModal() {
+  designerBatchMode = false;
+  designerSelected = {};
+  document.getElementById('designerModal').classList.add('open');
+  renderDesignerList();
+}
+function closeDesignerModal() {
+  document.getElementById('designerModal').classList.remove('open');
+}
+function renderDesignerList() {
+  const list = getDesigners();
+  const container = document.getElementById('designerList');
+  document.getElementById('designerCount').textContent = list.length;
+  updateDesignerBatchBar();
+
+  if (list.length === 0) {
+    container.innerHTML = '<div style="text-align:center;padding:20px;color:var(--color-text-muted);font-size:14px;">暂无设计师，请添加</div>';
+    return;
+  }
+
+  container.innerHTML = list.map((name, i) => {
+    const checked = designerSelected[i] ? 'checked' : '';
+    const batchCheck = designerBatchMode
+      ? `<input type="checkbox" id="dchk_${i}" ${checked} onchange="toggleDesignerSel(${i})" style="width:16px;height:16px;cursor:pointer;accent-color:var(--color-primary);" />`
+      : '';
+    const avatarColors = ['#4f6ef7','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4','#ec4899','#84cc16'];
+    const avatarColor = avatarColors[i % avatarColors.length];
+    const subjs = getDesignerSubjects()[name] || [];
+    const subjTags = subjs.map(s => `<span style="padding:1px 6px;border-radius:100px;font-size:10px;font-weight:600;background:${SUBJ_DOTS[s]}22;color:${SUBJ_COLORS[s]};">${s}</span>`).join('');
+    return `
+    <div style="display:flex;align-items:center;gap:8px;padding:10px 12px;background:var(--color-surface-2);border-radius:var(--radius-md);border:1px solid var(--color-border);" id="drow_${i}">
+      ${batchCheck}
+      <span style="width:24px;height:24px;background:${avatarColor};color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;">${name.charAt(0)}</span>
+      <span style="flex:1;font-size:14px;">${name}</span>
+      ${subjTags ? `<div style="display:flex;gap:4px;cursor:pointer;" onclick="editDesignerSubjects(${i})">${subjTags}</div>` : `<span style="font-size:11px;color:var(--color-text-muted);cursor:pointer;" onclick="editDesignerSubjects(${i})">未关联学科</span>`}
+      ${!designerBatchMode ? `
+      <button onclick="editDesigner(${i})" style="padding:4px 10px;border:1px solid var(--color-border);border-radius:var(--radius-sm);background:var(--color-surface);cursor:pointer;font-size:12px;color:var(--color-text-secondary);">编辑</button>
+      <button onclick="deleteDesigner(${i})" style="padding:4px 10px;border:1px solid #fca5a5;border-radius:var(--radius-sm);background:#fef2f2;cursor:pointer;font-size:12px;color:#dc2626;">删除</button>` : ''}
+    </div>
+  `}).join('');
+  // 同步左侧统计卡片的设计师数量
+  document.getElementById('statDesignerCount').textContent = list.length;
+}
+
+function addDesigner() {
+  const input = document.getElementById('newDesignerName');
+  const name = input.value.trim();
+  if (!name) { showToast('提示', '请输入设计师姓名', 'warning'); return; }
+  const list = getDesigners();
+  if (list.includes(name)) { showToast('提示', '该设计师已存在', 'warning'); return; }
+  list.push(name);
+  saveDesigners(list);
+  input.value = '';
+  renderDesignerList();
+  showToast('添加成功', `已添加设计师：${name}`);
+}
+
+function batchImportDesigners() {
+  const input = document.getElementById('batchDesignerInput');
+  const raw = input.value.trim();
+  if (!raw) { showToast('提示', '请输入要导入的设计师姓名', 'warning'); return; }
+  const names = raw.split(/\n/).map(n => n.trim()).filter(n => n);
+  if (names.length === 0) { showToast('提示', '未识别到有效姓名', 'warning'); return; }
+  const list = getDesigners();
+  const added = [], dup = [];
+  names.forEach(n => {
+    if (list.includes(n)) dup.push(n);
+    else { list.push(n); added.push(n); }
+  });
+  saveDesigners(list);
+  input.value = '';
+  renderDesignerList();
+  const msg = added.length > 0 ? `新增 ${added.length} 位` : '';
+  const dupMsg = dup.length > 0 ? `，重复跳过 ${dup.length} 位` : '';
+  showToast('批量导入完成', `${msg}${dupMsg}`);
+}
+
+async function editDesigner(index) {
+  const list = getDesigners();
+  const currentName = list[index];
+  const newName = prompt('修改设计师姓名：', currentName);
+  if (!newName || newName.trim() === '') return;
+  const trimmed = newName.trim();
+  if (trimmed !== currentName && list.includes(trimmed)) {
+    showToast('提示', '该设计师名称已存在', 'warning');
+    return;
+  }
+  list[index] = trimmed;
+  saveDesigners(list);
+  // 同步更新 entries 中的设计师名（本地 + 云端）
+  const toUpdate = entries.filter(e => e.designer === currentName);
+  toUpdate.forEach(e => { e.designer = trimmed; });
+  saveEntriesLocal();
+  if (_cbReady) {
+    for (const e of toUpdate) await cbUpdateEntry(e.id, { designer: trimmed });
+  }
+  // 同步更新学科关联键名
+  const ds = getDesignerSubjects();
+  if (ds[currentName]) {
+    ds[trimmed] = ds[currentName];
+    delete ds[currentName];
+    saveDesignerSubjects(ds);
+  }
+  renderDesignerList();
+  buildCalendar();
+  showToast('已修改', `更名为：${trimmed}`);
+}
+
+function deleteDesigner(index) {
+  const list = getDesigners();
+  const name = list[index];
+  list.splice(index, 1);
+  saveDesigners(list);
+  // 同步删除学科关联
+  const ds = getDesignerSubjects();
+  if (ds[name]) { delete ds[name]; saveDesignerSubjects(ds); }
+  renderDesignerList();
+  showToast('已删除', `已删除设计师：${name}`);
+}
+
+let _editingSubjectIndex = null;
+function editDesignerSubjects(index) {
+  _editingSubjectIndex = index;
+  const list = getDesigners();
+  const name = list[index];
+  const ds = getDesignerSubjects();
+  const current = ds[name] || [];
+  const container = document.getElementById('designerSubjectOptions');
+  container.innerHTML = SUBJECTS.map(s => `
+    <label style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:6px;cursor:pointer;transition:background .15s;" onmouseover="this.style.background='var(--color-surface-2)'" onmouseout="this.style.background='transparent'">
+      <input type="checkbox" value="${s}" ${current.includes(s) ? 'checked' : ''} style="width:16px;height:16px;cursor:pointer;accent-color:var(--color-primary);" />
+      <span style="width:8px;height:8px;border-radius:50%;background:${SUBJ_DOTS[s]};display:inline-block;"></span>
+      <span style="font-size:14px;color:${SUBJ_COLORS[s]};font-weight:600;">${s}</span>
+    </label>
+  `).join('');
+  document.getElementById('designerSubjectModal').classList.add('open');
+}
+function closeDesignerSubjectModal() {
+  document.getElementById('designerSubjectModal').classList.remove('open');
+  _editingSubjectIndex = null;
+}
+function saveDesignerSubjectEdit() {
+  if (_editingSubjectIndex === null) return;
+  const list = getDesigners();
+  const name = list[_editingSubjectIndex];
+  const checked = Array.from(document.querySelectorAll('#designerSubjectOptions input[type="checkbox"]:checked')).map(cb => cb.value);
+  const ds = getDesignerSubjects();
+  if (checked.length > 0) ds[name] = checked;
+  else delete ds[name];
+  saveDesignerSubjects(ds);
+  renderDesignerList();
+  closeDesignerSubjectModal();
+  showToast('已保存', `${name} 关联学科：${checked.join('、') || '无'}`);
+}
+
+function toggleDesignerBatchMode() {
+  designerBatchMode = document.getElementById('designerBatchMode').checked;
+  if (!designerBatchMode) {
+    designerSelected = {};
+  }
+  renderDesignerList();
+}
+
+function toggleDesignerSel(i) {
+  designerSelected[i] = !designerSelected[i];
+  updateDesignerBatchBar();
+}
+
+function toggleAllDesigners() {
+  const list = getDesigners();
+  list.forEach((_, i) => { designerSelected[i] = true; });
+  updateDesignerBatchBar();
+  renderDesignerList();
+}
+
+function updateDesignerBatchBar() {
+  const count = Object.values(designerSelected).filter(Boolean).length;
+  const bar = document.getElementById('designerBatchBar');
+  if (bar) {
+    bar.style.display = designerBatchMode ? 'flex' : 'none';
+    const countEl = document.getElementById('designerSelectedCount');
+    if (countEl) countEl.textContent = count;
+  }
+}
+
+function batchDeleteDesigners() {
+  const selected = Object.keys(designerSelected).filter(i => designerSelected[i]).map(Number);
+  if (selected.length === 0) { showToast('提示', '请先选择要删除的设计师', 'warning'); return; }
+  const list = getDesigners();
+  const names = selected.map(i => list[i]);
+  showConfirm(`确定删除 ${selected.length} 位设计师？\n${names.join('、')}`, async () => {
+    const toDelete = new Set(names);
+    // 从列表中删除
+    const newList = list.filter(n => !toDelete.has(n));
+    saveDesigners(newList);
+    // entries 中删除的设计师，按学科重新匹配新设计师
+    const toUpdate = entries.filter(e => toDelete.has(e.designer));
+    toUpdate.forEach(e => { e.designer = getDesignerBySubject(e.subject) || '未分配'; });
+    saveEntriesLocal();
+    if (_cbReady) {
+      for (const e of toUpdate) await cbUpdateEntry(e.id, { designer: e.designer });
+    }
+    designerSelected = {};
+    renderDesignerList();
+    buildCalendar();
+    showToast('批量删除完成', `已删除 ${selected.length} 位设计师`);
+  });
+}
+
+async function batchRenameDesigner() {
+  const selected = Object.keys(designerSelected).filter(i => designerSelected[i]).map(Number);
+  if (selected.length === 0) { showToast('提示', '请先选择要重命名的设计师', 'warning'); return; }
+  const list = getDesigners();
+  const names = selected.map(i => list[i]);
+  const newName = prompt(`将 ${selected.length} 位设计师统一重命名为：`, names.join(' → '));
+  if (!newName || !newName.trim()) return;
+  const trimmed = newName.trim();
+  if (list.includes(trimmed)) { showToast('提示', '该名称已存在', 'warning'); return; }
+  for (const i of selected) {
+    const toUpdate = entries.filter(e => e.designer === list[i]);
+    toUpdate.forEach(e => { e.designer = trimmed; });
+    if (_cbReady) {
+      for (const e of toUpdate) await cbUpdateEntry(e.id, { designer: trimmed });
+    }
+    list[i] = trimmed;
+  }
+  saveDesigners(list);
+  saveEntriesLocal();
+  designerSelected = {};
+  renderDesignerList();
+  buildCalendar();
+  showToast('批量重命名完成', `已统一命名为：${trimmed}`);
+}
+
+/* ============================================================
+   批量处理日程
+============================================================ */
+let batchQueryResults = [];
+let batchChecked = {};
+
+function openBatchProcessModal() {
+  batchQueryResults = [];
+  batchChecked = {};
+  document.getElementById('batchResultSection').style.display = 'none';
+  document.getElementById('batchProcessModal').classList.add('open');
+  const sel = document.getElementById('batchDesigner');
+  if (sel) sel.innerHTML = '<option value="">全部设计师</option>' + getDesigners().map(d => `<option value="${d}">${d}</option>`).join('');
+  const designerSel = document.getElementById('batchAssignDesigner');
+  if (designerSel) designerSel.innerHTML = getDesigners().map(d => `<option value="${d}">${d}</option>`).join('');
+  const subjSel = document.getElementById('batchSubject');
+  if (subjSel) subjSel.innerHTML = '<option value="">全部学科</option>' + SUBJECTS.map(s => `<option value="${s}">${s}</option>`).join('');
+}
+function closeBatchProcessModal() {
+  document.getElementById('batchProcessModal').classList.remove('open');
+}
+function clearBatchFilter() {
+  document.getElementById('batchGrade').value = '';
+  document.getElementById('batchSeason').value = '';
+  document.getElementById('batchDesigner').value = '';
+  document.getElementById('batchSubject').value = '';
+  document.getElementById('batchDateFrom').value = '';
+  document.getElementById('batchDateTo').value = '';
+  batchQueryResults = [];
+  batchChecked = {};
+  document.getElementById('batchResultSection').style.display = 'none';
+}
+function queryBatchEntries() {
+  const grade = document.getElementById('batchGrade').value;
+  const season = document.getElementById('batchSeason').value;
+  const designer = document.getElementById('batchDesigner').value;
+  const subject = document.getElementById('batchSubject').value;
+  const dateFrom = document.getElementById('batchDateFrom').value;
+  const dateTo = document.getElementById('batchDateTo').value;
+  batchQueryResults = entries.filter(e => {
+    if (grade && e.grade !== grade) return false;
+    if (season && e.season !== season) return false;
+    if (designer && e.designer !== designer) return false;
+    if (subject && e.subject !== subject) return false;
+    if (dateFrom && e.date < dateFrom) return false;
+    if (dateTo && e.date > dateTo) return false;
+    return true;
+  });
+  batchChecked = {};
+  const totalCount = batchQueryResults.reduce((s, e) => s + e.count, 0);
+  document.getElementById('batchResultCount').textContent = batchQueryResults.length;
+  document.getElementById('batchResultTotal').textContent = totalCount;
+  document.getElementById('batchSelectedCount').textContent = '0';
+  document.getElementById('batchSelectAll').checked = false;
+  renderBatchEntriesList();
+  document.getElementById('batchResultSection').style.display = 'block';
+}
+function renderBatchEntriesList() {
+  const container = document.getElementById('batchEntriesList');
+  if (batchQueryResults.length === 0) {
+    container.innerHTML = '<div style="text-align:center;padding:30px;color:var(--color-text-muted);font-size:13px;">未找到匹配的记录</div>';
+    return;
+  }
+  container.innerHTML = batchQueryResults.map((e, idx) => {
+    const checked = batchChecked[idx] ? 'checked' : '';
+    const gradeColor = e.grade === '初中' ? '#059669' : '#d97706';
+    return `<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-bottom:1px solid var(--color-border-light);" id="brow_${idx}">
+      <input type="checkbox" id="bchk_${idx}" ${checked} onchange="toggleBatchCheck(${idx})" style="width:15px;height:15px;cursor:pointer;accent-color:var(--color-primary);flex-shrink:0;" />
+      <div style="flex:1;min-width:0;">
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+          <span style="font-size:12px;font-weight:700;color:#64748b;">${formatDateCN(e.date)}</span>
+          <span style="padding:1px 7px;border-radius:100px;font-size:10px;font-weight:700;background:${gradeColor}22;color:${gradeColor};">${e.grade}</span>
+          <span style="font-size:12px;font-weight:600;color:${SUBJ_COLORS[e.subject] || '#333'};">${e.subject}</span>
+          <span style="font-size:11px;color:#94a3b8;">× ${e.count}</span>
+          <span style="padding:1px 6px;border-radius:100px;font-size:10px;font-weight:600;background:${SEASON_BG[e.season]};color:${SEASON_COLORS[e.season]};">${e.season}</span>
+        </div>
+        <div style="font-size:11px;color:var(--color-text-muted);margin-top:2px;">👤 ${e.designer} ${e.lesson ? `· 📖 ${e.lesson}` : ''} ${e.version ? `· 📘 ${e.version}` : ''}</div>
+      </div>
+      <span style="font-size:14px;font-weight:700;color:var(--color-text-primary);">${e.count}</span>
+    </div>`;
+  }).join('');
+}
+function toggleBatchCheck(idx) {
+  batchChecked[idx] = !batchChecked[idx];
+  updateBatchSelectedCount();
+}
+function toggleBatchSelectAll() {
+  const all = document.getElementById('batchSelectAll').checked;
+  batchQueryResults.forEach((_, i) => { batchChecked[i] = all; });
+  renderBatchEntriesList();
+  updateBatchSelectedCount();
+}
+function updateBatchSelectedCount() {
+  document.getElementById('batchSelectedCount').textContent = Object.values(batchChecked).filter(Boolean).length;
+}
+function getBatchSelectedIds() {
+  return Object.keys(batchChecked).filter(i => batchChecked[i]).map(Number);
+}
+function batchDeleteSelected() {
+  const selected = getBatchSelectedIds();
+  if (selected.length === 0) { showToast('提示', '请先选择要删除的记录', 'warning'); return; }
+  const items = selected.map(i => batchQueryResults[i]);
+  showConfirm(`确定删除 ${selected.length} 条记录（共 ${items.reduce((s, e) => s + e.count, 0)} 册）？`, async () => {
+    const idsToDelete = new Set(selected.map(i => batchQueryResults[i].id));
+    if (_cbReady) await cbRemoveWhere(items);
+    entries = entries.filter(e => !idsToDelete.has(e.id));
+    saveEntriesLocal();
+    queryBatchEntries();
+    buildCalendar();
+    showToast('批量删除完成', `已删除 ${selected.length} 条记录`);
+  });
+}
+async function batchAssignDesigner() {
+  const selected = getBatchSelectedIds();
+  if (selected.length === 0) { showToast('提示', '请先选择要修改的记录', 'warning'); return; }
+  const newDesigner = document.getElementById('batchAssignDesigner').value;
+  if (!newDesigner) return;
+  for (const i of selected) {
+    const id = batchQueryResults[i].id;
+    entries.forEach(e => { if (e.id === id) e.designer = newDesigner; });
+    if (_cbReady) await cbUpdateEntry(id, { designer: newDesigner });
+  }
+  saveEntriesLocal();
+  queryBatchEntries();
+  buildCalendar();
+  showToast('批量分配完成', `已将 ${selected.length} 条记录分配给：${newDesigner}`);
+}
+async function batchAssignSeason() {
+  const selected = getBatchSelectedIds();
+  if (selected.length === 0) { showToast('提示', '请先选择要修改的记录', 'warning'); return; }
+  const newSeason = document.getElementById('batchAssignSeason').value;
+  if (!newSeason) return;
+  for (const i of selected) {
+    const id = batchQueryResults[i].id;
+    entries.forEach(e => { if (e.id === id) e.season = newSeason; });
+    if (_cbReady) await cbUpdateEntry(id, { season: newSeason });
+  }
+  saveEntriesLocal();
+  queryBatchEntries();
+  buildCalendar();
+  showToast('批量修改完成', `已将 ${selected.length} 条记录季节改为：${SEASON_LABELS[newSeason] || newSeason}`);
+}
+
+/* ============================================================
+   自定义提示弹窗
+============================================================ */
+let confirmCallback = null;
+
+function showToast(title, message, type = 'success') {
+  const colors = {
+    success: { bg: '#10b981', icon: '✅' },
+    error: { bg: '#ef4444', icon: '❌' },
+    info: { bg: '#3b82f6', icon: 'ℹ️' },
+    warning: { bg: '#f59e0b', icon: '⚠️' }
+  };
+  const color = colors[type] || colors.success;
+
+  document.getElementById('toastTitleBar').style.background = color.bg;
+  document.getElementById('toastTitle').textContent = `${color.icon} ${title}`;
+  document.getElementById('toastMessage').innerHTML = message.replace(/\n/g, '<br>');
+  document.getElementById('toastModal').classList.add('open');
+
+  // 自动关闭（2秒后），避免阻断操作
+  clearTimeout(window._toastTimer);
+  window._toastTimer = setTimeout(closeToast, 2000);
+}
+
+function closeToast() {
+  document.getElementById('toastModal').classList.remove('open');
+}
+
+function showConfirm(message, callback, confirmText = '确定删除', isDanger = true) {
+  document.getElementById('confirmMessage').innerHTML = message.replace(/\n/g, '<br>');
+  document.getElementById('confirmBtn').textContent = confirmText;
+  document.getElementById('confirmBtn').style.background = isDanger ? '#dc2626' : 'var(--color-primary)';
+  confirmCallback = callback;
+  document.getElementById('confirmModal').classList.add('open');
+}
+
+function closeConfirm() {
+  document.getElementById('confirmModal').classList.remove('open');
+  confirmCallback = null;
+}
+
+function doConfirm() {
+  if (confirmCallback) confirmCallback();
+  closeConfirm();
+}
+
+/* ============================================================
+   初始化
+============================================================ */
+(async function init() {
+  // 显示加载提示
+  const loadingHTML = `
+    <div id="cbLoadingOverlay" style="position:fixed;inset:0;background:rgba(255,255,255,.92);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;gap:16px;">
+      <div style="width:40px;height:40px;border:3px solid #e2e8f0;border-top-color:#4f6ef7;border-radius:50%;animation:spin 0.8s linear infinite;"></div>
+      <div style="font-size:14px;color:#64748b;">正在连接云端数据...</div>
+    </div>
+    <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
+  `;
+  document.body.insertAdjacentHTML('beforeend', loadingHTML);
+
+  // 从 IndexedDB 读取备份数据，若为空则尝试从 localStorage 迁移
+  let localEntriesV2 = await loadEntriesLocal();
+  // 自动迁移：IndexedDB 为空时，从 localStorage v2/旧格式读取并迁入 IndexedDB
+  if (!localEntriesV2 || localEntriesV2.length === 0) {
+    const rawV2 = localStorage.getItem('scheduleEntries_v2');
+    const rawOld = localStorage.getItem('scheduleEntries');
+    let migratedData = [];
+    if (rawV2) {
+      try { migratedData = JSON.parse(rawV2); console.log('[INIT] 从 localStorage v2 迁移', migratedData.length, '条'); } catch(_){}
+    } else if (rawOld) {
+      try { migratedData = JSON.parse(rawOld); console.log('[INIT] 从 localStorage 旧格式迁移', migratedData.length, '条'); } catch(_){}
+    }
+    if (migratedData.length > 0) {
+      localEntriesV2 = migratedData;
+      // 写入 IndexedDB，下次直接读
+      try { await idbSet('scheduleEntries_v2', JSON.stringify(migratedData)); console.log('[INIT] ✅ 已迁入 IndexedDB'); } catch(e){ console.error('[INIT] 迁入失败', e); }
+    }
+  }
+  const localEntriesOld = JSON.parse(localStorage.getItem('scheduleEntries') || '[]');
+  const localEntries = (localEntriesV2 && localEntriesV2.length > 0) ? localEntriesV2 : localEntriesOld;
+  const localMapped = localEntries.map(ex => ({
+    ...ex,
+    season: ex.season || '暑',
+    designer: ex.designer || getDesignerBySubject(ex.subject) || '',
+    subGrade: ex.subGrade || ''
+  }));
+  console.log('[INIT] 本地数据:', localMapped.length, '条');
+
+  // 核心策略：本地数据优先，永远不以云端覆盖本地
+  // 云端仅用于补充本地没有的数据（多设备同步场景）
+  entries = localMapped;
+
+  try {
+    await cbSignIn();
+    console.log('[INIT] _cbReady =', _cbReady);
+    if (_cbReady) {
+      const cloudData = await cbLoadEntries();
+      const cloudIds = new Set(cloudData.map(e => e.id));
+      console.log('[INIT] 云端 IDs:', [...cloudIds].slice(0, 5), '...共', cloudIds.size, '个');
+
+      // 1. 云端有数据：补充本地没有的条目（多设备协同）
+      let addedFromCloud = 0;
+      for (const c of cloudData) {
+        if (c.id && !entries.some(e => e.id === c.id)) {
+          entries.push(c);
+          addedFromCloud++;
+        }
+      }
+      if (addedFromCloud > 0) {
+        console.log('[INIT] 云端补充', addedFromCloud, '条新数据');
+      }
+
+      // 2. 【关键迁移】本地有但云端没有的数据 → 自动写入云端
+      const toMigrate = entries.filter(e => !e.id || !cloudIds.has(e.id));
+      console.log('[INIT] 需要迁移的条目:', toMigrate.length, '条');
+      if (toMigrate.length > 0) {
+        console.log('[INIT] 开始迁移...');
+        let migrated = 0;
+        for (const entry of toMigrate) {
+          try {
+            const { id, ...data } = entry;
+            const res = await cbCol.add({ data });
+            entry.id = res.id;
+            migrated++;
+            console.log('[INIT] 迁移成功:', entry.subject, entry.date, 'id=', res.id);
+          } catch (e) {
+            console.error('[INIT] 迁移单条失败:', entry, e);
+          }
+        }
+        console.log('[INIT] 迁移完成：成功', migrated, '/', toMigrate.length, '条');
+        if (migrated > 0) {
+          showToast('数据同步', `已将 ${migrated} 条本地数据同步到云端，刷新后所有人可见`, 'success');
+        }
+      } else {
+        console.log('[INIT] 无需迁移，所有数据已在云端');
+      }
+
+      // 【权限自检】云端为空但本地有数据 → 提示检查权限（多设备同步依赖开放权限）
+      if (cloudData.length === 0 && entries.length > 0) {
+        console.warn('[INIT] ⚠️ 云端数据库为空，但本地有', entries.length, '条数据。请检查 CloudBase 控制台 → 数据库 → ScheduleEntry → 权限设置，确保为“所有用户可读可写”。');
+        showToast('权限提示', '云端数据库为空，请确认 ScheduleEntry 权限已开放为“所有用户可读可写”', 'warning');
+      }
+    } else {
+      console.warn('[INIT] CloudBase 未就绪，仅使用本地', entries.length, '条');
+      showToast('云端连接失败', '数据仅保存在本地浏览器，其他人无法看到', 'warning');
+    }
+  } catch(e) {
+    console.error('[INIT] 云端同步失败，使用本地数据', e);
+    showToast('云端连接异常', '数据仅保存在本地浏览器，请检查网络', 'warning');
+  }
+
+  // 保存到本地（确保内存和 localStorage 一致）
+  saveEntriesLocal();
+  console.log('[INIT] 初始化完成，最终', entries.length, '条');
+
+  // 调试：验证设计师学科映射
+  console.log('[DEBUG] 设计师学科映射:', getDesignerSubjects());
+  console.log('[DEBUG] 语文→', getDesignerBySubject('语文'), '数学→', getDesignerBySubject('数学'), '物理→', getDesignerBySubject('物理'), '化学→', getDesignerBySubject('化学'));
+
+  // 确保加载遮罩一定移除
+  const overlay = document.getElementById('cbLoadingOverlay');
+  if (overlay) overlay.remove();
+
+  // 确保日历一定渲染
+  try { buildCalendar(); } catch(e) { console.error('[UI] 日历渲染失败', e); }
+
+  // 启动自动同步（多人协作）
+  if (_cbReady) {
+    _lastSyncCount = entries.length;
+    startAutoSync();
+    console.log('[CB] 自动同步已启动，当前条目数:', entries.length);
+  }
+})();
+</script>
+</body>
+</html>

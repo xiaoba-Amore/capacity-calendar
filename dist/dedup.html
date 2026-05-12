@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>排课日历 - 一次性去重清理</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f1f5f9; padding: 40px; }
+  .card { background: #fff; border-radius: 12px; padding: 32px; max-width: 600px; margin: 0 auto; box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
+  h2 { font-size: 20px; color: #1e293b; margin-bottom: 16px; }
+  p { color: #64748b; font-size: 14px; line-height: 1.7; margin-bottom: 12px; }
+  .steps { background: #f8fafc; border-radius: 8px; padding: 16px; margin: 16px 0; font-size: 13px; color: #475569; line-height: 2; }
+  .btn { display: inline-block; padding: 10px 24px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; border: none; margin-top: 12px; }
+  .btn-primary { background: #3b82f6; color: #fff; }
+  .btn-danger { background: #ef4444; color: #fff; }
+  .log { background: #1e293b; color: #a5f3fc; font-family: monospace; font-size: 12px; padding: 16px; border-radius: 8px; margin-top: 16px; max-height: 400px; overflow-y: auto; white-space: pre-wrap; }
+  .warn { background: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 12px 16px; color: #92400e; font-size: 13px; margin: 12px 0; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h2>🧹 排课日历 — 一次性去重清理</h2>
+  <p>这个页面会帮你把 <b>IndexedDB</b> 里的重复数据清理掉。</p>
+
+  <div class="warn">
+    ⚠️ 清理前建议先确认数据已同步到云端（点「同步」按钮）。清理后本地和云端的重复数据都会被删除（只保留第一条）。
+  </div>
+
+  <div class="steps">
+    <b>操作步骤：</b><br>
+    1. 点下面「① 扫描重复数据」按钮<br>
+    2. 查看扫描结果（会显示发现多少条重复）<br>
+    3. 确认无误后点「② 执行清理」<br>
+    4. 清理完成后点「③ 同步到云端」
+  </div>
+
+  <div>
+    <button class="btn btn-primary" onclick="scan()">① 扫描重复数据</button>
+    <button class="btn btn-danger" onclick="clean()" id="btnClean" disabled>② 执行清理</button>
+    <button class="btn btn-primary" onclick="syncCloud()" id="btnSync" disabled>③ 同步到云端</button>
+  </div>
+
+  <div class="log" id="log">等待操作...</div>
+</div>
+
+<script>
+const IDB_DB = 'capacityCalendarDB';
+const IDB_STORE = 'entries';
+const IDB_VER = 1;
+
+let dupIndexes = []; // 重复项的索引列表
+
+function log(msg) {
+  const el = document.getElementById('log');
+  el.textContent += msg + '\n';
+  el.scrollTop = el.scrollHeight;
+  console.log('[DEDUP]', msg);
+}
+
+function idbOpen() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(IDB_DB, IDB_VER);
+    req.onupgradeneeded = () => req.result.createObjectStore(IDB_STORE);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+function idbGetAll() {
+  return idbOpen().then(db => new Promise((resolve, reject) => {
+    const tx = db.transaction(IDB_STORE, 'readonly');
+    const store = tx.objectStore(IDB_STORE);
+    const req = store.getAll();
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  }));
+}
+
+function idbSaveAll(data) {
+  return idbOpen().then(db => new Promise((resolve, reject) => {
+    const tx = db.transaction(IDB_STORE, 'readwrite');
+    const store = tx.objectStore(IDB_STORE);
+    store.clear();
+    for (const item of data) {
+      store.put(item, 'scheduleEntries_v2');
+    }
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  }));
+}
+
+function fingerprint(e) {
+  return [
+    e.date || '',
+    e.subject || '',
+    e.grade || '',
+    e.designer || '',
+    e.season || '',
+    e.subGrade || '',
+    e.version || '',
+    e.lesson || ''
+  ].join('||');
+}
+
+async function scan() {
+  log('📂 正在读取 IndexedDB 数据...');
+  const raw = await idbGetAll();
+  let data;
+  if (Array.isArray(raw)) {
+    data = raw;
+  } else if (raw && typeof raw === 'string') {
+    data = JSON.parse(raw);
+  } else {
+    log('❌ 数据格式异常');
+    return;
+  }
+  log(`✅ 读取到 ${data.length} 条数据`);
+
+  const seen = new Map();
+  dupIndexes = [];
+
+  for (let i = 0; i < data.length; i++) {
+    const fp = fingerprint(data[i]);
+    if (seen.has(fp)) {
+      dupIndexes.push(i);
+    } else {
+      seen.set(fp, i);
+    }
+  }
+
+  log(`🔍 扫描完成：发现 ${dupIndexes.length} 条重复数据`);
+  log(`📊 去重后保留 ${data.length - dupIndexes.length} 条`);
+
+  if (dupIndexes.length > 0) {
+    document.getElementById('btnClean').disabled = false;
+    log('✅ 可以点击「② 执行清理」按钮');
+  } else {
+    log('🎉 没有发现重复数据，无需清理');
+  }
+}
+
+async function clean() {
+  if (!confirm(`确认删除 ${dupIndexes.length} 条重复数据？\n\n（保留第一条，删除后续重复项）`)) return;
+
+  log('🗑️  开始清理...');
+  const raw = await idbGetAll();
+  let data = Array.isArray(raw) ? raw : JSON.parse(raw);
+
+  // 从后往前删，避免索引错乱
+  const toRemove = dupIndexes.sort((a, b) => b - a);
+  let removed = 0;
+  for (const idx of toRemove) {
+    log(`  删除：[${idx}] ${data[idx].date} ${data[idx].subject} ${data[idx].grade}`);
+    data.splice(idx, 1);
+    removed++;
+  }
+
+  log('💾 保存到 IndexedDB...');
+  await idbSaveAll(data);
+  log(`✅ 清理完成！共删除 ${removed} 条，保留 ${data.length} 条`);
+
+  dupIndexes = [];
+  document.getElementById('btnClean').disabled = true;
+  document.getElementById('btnSync').disabled = false;
+}
+
+async function syncCloud() {
+  log('☁️  同步到云端...');
+  log('   请手动打开排课日历页面，点「同步」按钮');
+  log('   或者在 Console 里运行 manualSync()');
+  alert('请打开排课日历页面，点顶部「同步」按钮，把清理后的数据推到云端');
+}
+
+log('就绪。请点「① 扫描重复数据」开始。');
+</script>
+</body>
+</html>

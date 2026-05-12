@@ -1,0 +1,995 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>排班数量统计工具</title>
+  <style>
+    :root {
+      --color-primary: #4f6ef7;
+      --color-bg: #f8fafc;
+      --color-surface: #ffffff;
+      --color-border: #e2e8f0;
+      --color-text: #1e293b;
+      --color-text-secondary: #64748b;
+      --color-success: #10b981;
+      --color-warning: #f59e0b;
+      --radius: 8px;
+      --shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+      background: var(--color-bg);
+      color: var(--color-text);
+      min-height: 100vh;
+      padding: 24px;
+    }
+    .container {
+      max-width: 960px;
+      margin: 0 auto;
+    }
+    h1 {
+      font-size: 20px;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .subtitle {
+      color: var(--color-text-secondary);
+      font-size: 14px;
+      margin-bottom: 24px;
+    }
+
+    /* 顶部双区块：年级 + 外包人员 */
+    .top-bar {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+    .card {
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius);
+      padding: 16px 20px;
+      box-shadow: var(--shadow);
+    }
+    .card-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--color-text-secondary);
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .count-badge {
+      background: var(--color-primary);
+      color: white;
+      font-size: 11px;
+      padding: 1px 8px;
+      border-radius: 100px;
+      font-weight: 500;
+    }
+
+    /* 年级选择 */
+    .grade-tabs {
+      display: flex;
+      gap: 10px;
+    }
+    .grade-tab {
+      flex: 1;
+      padding: 12px 20px;
+      border: 2px solid var(--color-border);
+      border-radius: var(--radius);
+      background: var(--color-surface);
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.15s;
+    }
+    .grade-tab:hover { border-color: var(--color-primary); }
+    .grade-tab.active {
+      border-color: var(--color-primary);
+      background: var(--color-primary);
+      color: white;
+    }
+    .grade-tab .g-name { font-size: 15px; font-weight: 600; }
+    .grade-tab .g-count {
+      font-size: 12px;
+      opacity: 0.7;
+      margin-top: 2px;
+    }
+
+    /* 外包人员 */
+    .outsource-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .outsource-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 5px 10px;
+      background: var(--color-bg);
+      border: 1px solid var(--color-border);
+      border-radius: 100px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .outsource-tag:hover {
+      border-color: var(--color-primary);
+      background: #eef1ff;
+    }
+    .outsource-tag .del {
+      width: 14px; height: 14px;
+      border-radius: 50%;
+      background: #ef4444;
+      color: white;
+      font-size: 10px;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer;
+    }
+    .add-outsource {
+      display: flex;
+      gap: 8px;
+    }
+    .add-outsource input {
+      flex: 1;
+      padding: 6px 12px;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius);
+      font-size: 13px;
+    }
+    .add-outsource input:focus {
+      outline: none;
+      border-color: var(--color-primary);
+    }
+    .btn-sm {
+      padding: 6px 14px;
+      border: none;
+      border-radius: var(--radius);
+      font-size: 13px;
+      cursor: pointer;
+      background: var(--color-primary);
+      color: white;
+    }
+    .btn-sm:hover { background: #3a55d4; }
+
+    /* 输入区 */
+    .input-section {
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius);
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: var(--shadow);
+    }
+    .section-title {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .section-title .hint {
+      font-size: 12px;
+      color: var(--color-text-secondary);
+      font-weight: 400;
+      margin-left: 8px;
+    }
+
+    /* 截图上传 */
+    .upload-area {
+      border: 2px dashed var(--color-border);
+      border-radius: var(--radius);
+      padding: 32px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.15s;
+      margin-bottom: 16px;
+    }
+    .upload-area:hover {
+      border-color: var(--color-primary);
+      background: #f8faff;
+    }
+    .upload-area.dragover {
+      border-color: var(--color-primary);
+      background: #eef1ff;
+    }
+    .upload-icon { font-size: 36px; margin-bottom: 10px; }
+    .upload-text { color: var(--color-text-secondary); font-size: 14px; }
+    .upload-hint { font-size: 12px; color: #94a3b8; margin-top: 6px; }
+    #fileInput { display: none; }
+
+    /* 识别结果 */
+    .ocr-result {
+      background: #f0fdf4;
+      border: 1px solid #86efac;
+      border-radius: var(--radius);
+      padding: 14px 16px;
+      margin-bottom: 12px;
+      display: none;
+    }
+    .ocr-result.show { display: block; }
+    .ocr-result.error {
+      background: #fef2f2;
+      border-color: #fca5a5;
+    }
+    .ocr-result-title { font-size: 13px; font-weight: 600; margin-bottom: 6px; }
+    .ocr-result-text { font-size: 14px; color: var(--color-text-secondary); }
+    .ocr-result-text strong { color: var(--color-text); }
+
+    /* 确认行 */
+    .confirm-row {
+      display: none;
+      grid-template-columns: 1fr 120px 120px auto;
+      gap: 12px;
+      align-items: end;
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid var(--color-border-light);
+    }
+    .confirm-row.show { display: grid; }
+    .input-group label {
+      display: block;
+      font-size: 12px;
+      color: var(--color-text-secondary);
+      margin-bottom: 6px;
+    }
+    .input-group input, .input-group select {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius);
+      font-size: 14px;
+      background: white;
+    }
+    .input-group input:focus, .input-group select:focus {
+      outline: none;
+      border-color: var(--color-primary);
+    }
+    .btn {
+      padding: 10px 20px;
+      border: none;
+      border-radius: var(--radius);
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.15s;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .btn-primary { background: var(--color-primary); color: white; }
+    .btn-primary:hover { background: #3a55d4; }
+    .btn-secondary {
+      background: var(--color-surface);
+      color: var(--color-text);
+      border: 1px solid var(--color-border);
+    }
+
+    /* 数据列表 */
+    .data-list {
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      margin-bottom: 20px;
+    }
+    .list-header {
+      display: grid;
+      grid-template-columns: 100px 80px 1fr 60px 40px;
+      gap: 12px;
+      padding: 12px 16px;
+      background: var(--color-bg);
+      border-bottom: 1px solid var(--color-border);
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--color-text-secondary);
+    }
+    .list-item {
+      display: grid;
+      grid-template-columns: 100px 80px 1fr 60px 40px;
+      gap: 12px;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--color-border);
+      align-items: center;
+      font-size: 14px;
+    }
+    .list-item:last-child { border-bottom: none; }
+    .list-item:hover { background: #f8fafc; }
+    .item-grade {
+      font-weight: 600;
+      color: var(--color-primary);
+    }
+    .item-date { font-weight: 500; }
+    .item-count { font-weight: 600; color: var(--color-primary); }
+    .item-delete { color: #94a3b8; cursor: pointer; text-align: center; font-size: 18px; }
+    .item-delete:hover { color: #ef4444; }
+
+    /* 统计卡片 */
+    .summary-section {
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius);
+      padding: 20px;
+      box-shadow: var(--shadow);
+    }
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+    }
+    .summary-card {
+      background: var(--color-bg);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius);
+      padding: 20px;
+      text-align: center;
+    }
+    .summary-value {
+      font-size: 32px;
+      font-weight: 700;
+      color: var(--color-primary);
+    }
+    .summary-label {
+      font-size: 12px;
+      color: var(--color-text-secondary);
+      margin-top: 4px;
+    }
+
+    /* 导出按钮 */
+    .export-bar {
+      display: flex;
+      gap: 12px;
+      margin-top: 20px;
+      justify-content: flex-end;
+    }
+
+    /* 空状态 */
+    .empty-state {
+      text-align: center;
+      padding: 40px;
+      color: var(--color-text-secondary);
+    }
+    .empty-icon { font-size: 48px; margin-bottom: 12px; opacity: 0.5; }
+
+    /* 图片预览 */
+    .image-preview {
+      max-width: 100%;
+      max-height: 180px;
+      border-radius: var(--radius);
+      margin-top: 12px;
+      border: 1px solid var(--color-border);
+    }
+
+    /* 学科颜色 */
+    .subject-语文 { background: #fee2e2; color: #991b1b; }
+    .subject-数学 { background: #dbeafe; color: #1e40af; }
+    .subject-英语 { background: #fce7f3; color: #9d174d; }
+    .subject-物理 { background: #d1fae5; color: #065f46; }
+    .subject-化学 { background: #fef3c7; color: #92400e; }
+    .subject-生物 { background: #e0e7ff; color: #3730a3; }
+    .subject-历史 { background: #f3e8ff; color: #6b21a8; }
+    .subject-地理 { background: #cffafe; color: #155e75; }
+    .subject-政治 { background: #ffedd5; color: #9a3412; }
+    .subject-体育 { background: #ecfdf5; color: #047857; }
+    .subject-其他 { background: #f3f4f6; color: #374151; }
+
+    @media (max-width: 768px) {
+      .top-bar { grid-template-columns: 1fr; }
+      .summary-grid { grid-template-columns: 1fr; }
+      .confirm-row { grid-template-columns: 1fr 1fr; }
+      .list-header, .list-item {
+        grid-template-columns: 80px 60px 1fr 50px 30px;
+        font-size: 12px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>📅 排班数量统计工具</h1>
+    <p class="subtitle">上传钉钉日历截图或手动录入，统计各年级排班数量</p>
+
+    <!-- 顶部：年级选择 + 外包人员 -->
+    <div class="top-bar">
+      <div class="card">
+        <div class="card-title">
+          🎓 年级选择
+          <span class="count-badge" id="totalGradeCount">0</span>
+        </div>
+        <div class="grade-tabs">
+          <div class="grade-tab active" data-grade="初中" onclick="selectGrade(this)">
+            <div class="g-name">初中</div>
+            <div class="g-count" id="count-初中">0 条记录</div>
+          </div>
+          <div class="grade-tab" data-grade="高中" onclick="selectGrade(this)">
+            <div class="g-name">高中</div>
+            <div class="g-count" id="count-高中">0 条记录</div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">
+          👥 外包人员
+          <span class="count-badge" id="outsourceCount">0</span>
+          <span style="margin-left:auto;font-size:11px;color:#94a3b8;font-weight:400">点击查看详情</span>
+        </div>
+        <div class="outsource-list" id="outsourceList">
+          <!-- 动态生成 -->
+        </div>
+        <div class="add-outsource">
+          <input type="text" id="outsourceName" placeholder="输入姓名后回车添加">
+          <button class="btn-sm" onclick="addOutsource()">添加</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 截图上传 -->
+    <div class="input-section">
+      <div class="section-title">
+        📸 截图识别
+        <span class="hint">自动提取日期和色条数量（色条数 = 排班数量）</span>
+      </div>
+      <div class="upload-area" id="uploadArea">
+        <div class="upload-icon">📤</div>
+        <div class="upload-text">点击或拖拽上传钉钉日历截图</div>
+        <div class="upload-hint">支持 JPG、PNG 格式，截图中色条数量将作为班级数量</div>
+      </div>
+      <input type="file" id="fileInput" accept="image/*">
+      <div id="imagePreviewContainer"></div>
+      <div class="ocr-result" id="ocrResult">
+        <div class="ocr-result-title">识别结果</div>
+        <div class="ocr-result-text" id="ocrResultText"></div>
+      </div>
+
+      <!-- 确认行（截图识别后显示） -->
+      <div class="confirm-row" id="confirmRow">
+        <div class="input-group">
+          <label>日期</label>
+          <input type="date" id="ocrDate">
+        </div>
+        <div class="input-group">
+          <label>年级</label>
+          <select id="ocrGrade">
+            <option value="初中">初中</option>
+            <option value="高中">高中</option>
+          </select>
+        </div>
+        <div class="input-group">
+          <label>数量（色条数）</label>
+          <input type="number" id="ocrCount" min="0" placeholder="如：3">
+        </div>
+        <button class="btn btn-primary" onclick="confirmOcrEntry()">✓ 确认添加</button>
+      </div>
+    </div>
+
+    <!-- 手动录入 -->
+    <div class="input-section">
+      <div class="section-title">⌨️ 手动录入</div>
+      <div style="display:grid;grid-template-columns:1fr 100px 100px 100px auto;gap:12px;align-items:end;">
+        <div class="input-group">
+          <label>日期</label>
+          <input type="date" id="manualDate">
+        </div>
+        <div class="input-group">
+          <label>年级</label>
+          <select id="manualGrade">
+            <option value="初中">初中</option>
+            <option value="高中">高中</option>
+          </select>
+        </div>
+        <div class="input-group">
+          <label>学科</label>
+          <select id="manualSubject">
+            <option value="">不限</option>
+            <option value="语文">语文</option>
+            <option value="数学">数学</option>
+            <option value="英语">英语</option>
+            <option value="物理">物理</option>
+            <option value="化学">化学</option>
+            <option value="生物">生物</option>
+            <option value="历史">历史</option>
+            <option value="地理">地理</option>
+            <option value="政治">政治</option>
+            <option value="体育">体育</option>
+            <option value="其他">其他</option>
+          </select>
+        </div>
+        <div class="input-group">
+          <label>数量</label>
+          <input type="number" id="manualCount" min="0" placeholder="如：3">
+        </div>
+        <button class="btn btn-primary" onclick="addManualEntry()">添加</button>
+      </div>
+    </div>
+
+    <!-- 数据列表 -->
+    <div class="data-list">
+      <div class="list-header">
+        <div>日期</div>
+        <div>年级</div>
+        <div>学科</div>
+        <div>数量</div>
+        <div></div>
+      </div>
+      <div id="dataListBody">
+        <div class="empty-state">
+          <div class="empty-icon">📝</div>
+          <div>暂无数据，请上传截图或手动录入</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 统计汇总 -->
+    <div class="summary-section">
+      <div class="section-title">📊 统计汇总</div>
+      <div class="summary-grid">
+        <div class="summary-card">
+          <div class="summary-value" id="totalCount">0</div>
+          <div class="summary-label">总排班数</div>
+        </div>
+        <div class="summary-card">
+          <div class="summary-value" id="totalDays">0</div>
+          <div class="summary-label">有排班天数</div>
+        </div>
+        <div class="summary-card">
+          <div class="summary-value" id="avgPerDay">0</div>
+          <div class="summary-label">日均班级数</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 导出 -->
+    <div class="export-bar">
+      <button class="btn btn-secondary" onclick="clearAll()">🗑️ 清空</button>
+      <button class="btn btn-primary" onclick="exportData()">📥 导出 CSV</button>
+    </div>
+  </div>
+
+  <script>
+    // ===== 数据存储 =====
+    let entries = [];
+    let currentGrade = '初中';
+    let outsourcePersons = JSON.parse(localStorage.getItem('outsourcePersons') || '[]');
+    let lastOcrResult = null;
+
+    // ===== 年级选择 =====
+    function selectGrade(el) {
+      document.querySelectorAll('.grade-tab').forEach(t => t.classList.remove('active'));
+      el.classList.add('active');
+      currentGrade = el.dataset.grade;
+      // 同步设置手动录入的年级
+      document.getElementById('manualGrade').value = currentGrade;
+      document.getElementById('ocrGrade').value = currentGrade;
+    }
+
+    // ===== 外包人员管理 =====
+    function renderOutsourceList() {
+      const container = document.getElementById('outsourceList');
+      document.getElementById('outsourceCount').textContent = outsourcePersons.length;
+      
+      if (outsourcePersons.length === 0) {
+        container.innerHTML = '<span style="color:#94a3b8;font-size:13px">暂无外包人员，点击添加</span>';
+        return;
+      }
+      
+      container.innerHTML = outsourcePersons.map((name, i) => `
+        <span class="outsource-tag" onclick="showOutsourceDetail('${name}')">
+          ${name}
+          <span class="del" onclick="event.stopPropagation();removeOutsource(${i})">×</span>
+        </span>
+      `).join('');
+    }
+
+    function addOutsource() {
+      const input = document.getElementById('outsourceName');
+      const name = input.value.trim();
+      if (!name) return;
+      if (outsourcePersons.includes(name)) {
+        alert('此人已在列表中');
+        return;
+      }
+      outsourcePersons.push(name);
+      localStorage.setItem('outsourcePersons', JSON.stringify(outsourcePersons));
+      input.value = '';
+      renderOutsourceList();
+    }
+
+    function removeOutsource(index) {
+      outsourcePersons.splice(index, 1);
+      localStorage.setItem('outsourcePersons', JSON.stringify(outsourcePersons));
+      renderOutsourceList();
+    }
+
+    function showOutsourceDetail(name) {
+      // 筛选该外包人员参与的所有记录
+      const relatedEntries = entries.filter(e => e.outsource === name);
+      if (relatedEntries.length === 0) {
+        alert(`${name} 暂无排班记录`);
+        return;
+      }
+      const total = relatedEntries.reduce((s, e) => s + e.count, 0);
+      const dates = relatedEntries.map(e => e.date).join('、');
+      alert(`${name}\n参与排班：${total} 个班级\n涉及日期：${dates}`);
+    }
+
+    // 回车添加外包人员
+    document.getElementById('outsourceName').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') addOutsource();
+    });
+
+    // ===== 截图上传 =====
+    const uploadArea = document.getElementById('uploadArea');
+    const fileInput = document.getElementById('fileInput');
+
+    uploadArea.addEventListener('click', () => fileInput.click());
+    uploadArea.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      uploadArea.classList.add('dragover');
+    });
+    uploadArea.addEventListener('dragleave', () => {
+      uploadArea.classList.remove('dragover');
+    });
+    uploadArea.addEventListener('drop', (e) => {
+      e.preventDefault();
+      uploadArea.classList.remove('dragover');
+      if (e.dataTransfer.files.length > 0) handleImage(e.dataTransfer.files[0]);
+    });
+    fileInput.addEventListener('change', (e) => {
+      if (e.target.files.length > 0) handleImage(e.target.files[0]);
+    });
+
+    function handleImage(file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        document.getElementById('imagePreviewContainer').innerHTML = 
+          `<img src="${e.target.result}" class="image-preview">`;
+        
+        const img = new Image();
+        img.onload = () => analyzeImage(img);
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    // 图像分析 - 检测色条数量
+    function analyzeImage(img) {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      ctx.drawImage(img, 0, 0);
+
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const result = detectColorBars(imageData, canvas.width, canvas.height);
+      
+      const ocrResult = document.getElementById('ocrResult');
+      const ocrResultText = document.getElementById('ocrResultText');
+      const confirmRow = document.getElementById('confirmRow');
+
+      if (result.success) {
+        lastOcrResult = result;
+        ocrResult.className = 'ocr-result show';
+        ocrResultText.innerHTML = `
+          <strong>检测到日期：</strong>${result.date}<br>
+          <strong>检测到色条数量：</strong>${result.count} 条（将作为班级数量）
+        `;
+        // 填充确认行的数据
+        document.getElementById('ocrDate').value = result.date;
+        document.getElementById('ocrGrade').value = currentGrade;
+        document.getElementById('ocrCount').value = result.count;
+        confirmRow.classList.add('show');
+      } else {
+        lastOcrResult = null;
+        ocrResult.className = 'ocr-result show error';
+        ocrResultText.textContent = result.message;
+        confirmRow.classList.remove('show');
+      }
+    }
+
+    // 色条检测算法
+    function detectColorBars(imageData, width, height) {
+      const data = imageData.data;
+      
+      // 采样策略：按列扫描，检测垂直色条
+      const colStep = 8;
+      const colorBars = []; // 存储每个色条的位置范围
+      
+      // 检测钉钉日历的典型颜色（多色条）
+      // 常见色条颜色：绿色(#10b981)、蓝色(#3b82f6)、橙色(#f59e0b)、红色(#ef4444)、紫色(#8b5cf6)
+      const typicalColors = [
+        { r: 16, g: 185, b: 129, name: '绿' },   // 绿色
+        { r: 59, g: 130, b: 246, name: '蓝' },   // 蓝色
+        { r: 245, g: 158, b: 11, name: '橙' },  // 橙色
+        { r: 239, g: 68, b: 68, name: '红' },   // 红色
+        { r: 139, g: 92, b: 246, name: '紫' },  // 紫色
+        { r: 236, g: 72, b: 153, name: '粉' },  // 粉色
+      ];
+
+      // 扫描每个可能的色条区域
+      let barCount = 0;
+      const minBarWidth = 20; // 最小色条宽度
+      const maxGap = 15; // 色条之间的最大间隔
+
+      for (let x = 0; x < width; x += colStep) {
+        let hasColoredPixel = false;
+        let coloredCount = 0;
+        
+        // 检查这一列是否有颜色像素
+        for (let y = 0; y < height; y += colStep) {
+          const idx = (y * width + x) * 4;
+          const r = data[idx];
+          const g = data[idx + 1];
+          const b = data[idx + 2];
+          
+          // 检查是否是彩色（不是灰色或白色背景）
+          const brightness = (r + g + b) / 3;
+          const saturation = Math.max(r, g, b) - Math.min(r, g, b);
+          
+          // 排除白色/灰色背景，保留彩色像素
+          if (saturation > 30 && brightness > 80 && brightness < 240) {
+            coloredCount++;
+          }
+        }
+        
+        if (coloredCount > height * 0.1) { // 这一列有超过10%的彩色像素
+          hasColoredPixel = true;
+        }
+
+        // 根据彩色列的分布来估算色条数量
+        // 钉钉日历中，每个日期的色条是水平排列的
+        // 我们需要找到这些色条的水平位置
+        
+        // 改用行扫描：找每一行中的彩色像素块
+        // 取图像中间区域进行分析
+        const midY = Math.floor(height / 2);
+        const scanHeight = Math.floor(height * 0.4);
+        const startY = midY - scanHeight / 2;
+        
+        const barHeights = [];
+        for (let y = startY; y < startY + scanHeight; y += 4) {
+          let inBar = false;
+          let barStartX = 0;
+          
+          for (let x = 0; x < width; x += 4) {
+            const idx = (y * width + x) * 4;
+            const r = data[idx];
+            const g = data[idx + 1];
+            const b = data[idx + 2];
+            
+            const brightness = (r + g + b) / 3;
+            const saturation = Math.max(r, g, b) - Math.min(r, g, b);
+            
+            if (saturation > 40 && brightness > 70 && brightness < 240) {
+              if (!inBar) {
+                inBar = true;
+                barStartX = x;
+              }
+            } else {
+              if (inBar) {
+                inBar = false;
+                const barWidth = x - barStartX;
+                if (barWidth >= minBarWidth) {
+                  barHeights.push({ start: barStartX, width: barWidth });
+                }
+              }
+            }
+          }
+        }
+
+        // 合并重叠的色条
+        if (barHeights.length > 0) {
+          barHeights.sort((a, b) => a.start - b.start);
+          // 统计不重叠的色条
+          let lastEnd = -100;
+          barHeights.forEach(bar => {
+            if (bar.start > lastEnd + 10) {
+              barCount++;
+              lastEnd = bar.start + bar.width;
+            }
+          });
+        }
+      }
+
+      // 如果上述方法未能检测到，尝试简化方法：按颜色块数量估算
+      if (barCount < 1) {
+        // 统计垂直方向的颜色分布
+        const horizontalScan = [];
+        for (let y = 0; y < height; y += 20) {
+          const coloredCols = new Set();
+          for (let x = 0; x < width; x += 20) {
+            const idx = (y * width + x) * 4;
+            const r = data[idx];
+            const g = data[idx + 1];
+            const b = data[idx + 2];
+            const saturation = Math.max(r, g, b) - Math.min(r, g, b);
+            
+            if (saturation > 50) {
+              coloredCols.add(Math.floor(x / 60)); // 按60px分块
+            }
+          }
+          horizontalScan.push(coloredCols.size);
+        }
+        
+        // 取中间区域的平均值
+        const midIdx = Math.floor(horizontalScan.length / 4);
+        const midValues = horizontalScan.slice(midIdx, midIdx + midIdx);
+        if (midValues.length > 0) {
+          barCount = Math.max(1, Math.round(midValues.reduce((s, v) => s + v, 0) / midValues.length));
+        }
+      }
+
+      // 限制范围在合理区间
+      barCount = Math.min(Math.max(1, barCount), 20);
+
+      // 从文件名提取日期（如果有）
+      let detectedDate = new Date().toISOString().split('T')[0];
+
+      return {
+        success: true,
+        date: detectedDate,
+        count: barCount,
+        message: ''
+      };
+    }
+
+    // 确认OCR结果
+    function confirmOcrEntry() {
+      const date = document.getElementById('ocrDate').value;
+      const grade = document.getElementById('ocrGrade').value;
+      const count = parseInt(document.getElementById('ocrCount').value) || 0;
+
+      if (!date) {
+        alert('请选择日期');
+        return;
+      }
+      if (count <= 0) {
+        alert('请输入有效的数量');
+        return;
+      }
+
+      addEntry(date, grade, '', count);
+      
+      // 重置
+      document.getElementById('ocrResult').classList.remove('show');
+      document.getElementById('confirmRow').classList.remove('show');
+      document.getElementById('imagePreviewContainer').innerHTML = '';
+      lastOcrResult = null;
+    }
+
+    // ===== 手动录入 =====
+    function addManualEntry() {
+      const date = document.getElementById('manualDate').value;
+      const grade = document.getElementById('manualGrade').value;
+      const subject = document.getElementById('manualSubject').value;
+      const count = parseInt(document.getElementById('manualCount').value) || 0;
+
+      if (!date) {
+        alert('请选择日期');
+        return;
+      }
+      if (count <= 0) {
+        alert('请输入有效的数量');
+        return;
+      }
+
+      addEntry(date, grade, subject, count);
+      document.getElementById('manualCount').value = '';
+    }
+
+    // ===== 数据操作 =====
+    function addEntry(date, grade, subject, count) {
+      const existingIndex = entries.findIndex(e => e.date === date && e.grade === grade && e.subject === subject);
+      
+      if (existingIndex >= 0) {
+        entries[existingIndex].count = count;
+      } else {
+        entries.push({
+          id: Date.now(),
+          date,
+          grade,
+          subject: subject || '-',
+          count,
+          outsource: ''
+        });
+      }
+      
+      entries.sort((a, b) => new Date(a.date) - new Date(b.date));
+      
+      renderList();
+      updateSummary();
+    }
+
+    function renderList() {
+      const container = document.getElementById('dataListBody');
+      
+      if (entries.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-icon">📝</div>
+            <div>暂无数据，请上传截图或手动录入</div>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = entries.map(entry => `
+        <div class="list-item">
+          <div class="item-date">${entry.date}</div>
+          <div class="item-grade">${entry.grade}</div>
+          <div>${entry.subject || '-'}</div>
+          <div class="item-count">${entry.count}</div>
+          <div class="item-delete" onclick="deleteEntry(${entry.id})">×</div>
+        </div>
+      `).join('');
+    }
+
+    function deleteEntry(id) {
+      entries = entries.filter(e => e.id !== id);
+      renderList();
+      updateSummary();
+    }
+
+    function updateSummary() {
+      const totalCount = entries.reduce((sum, e) => sum + e.count, 0);
+      const uniqueDays = new Set(entries.map(e => e.date)).size;
+      const avgPerDay = uniqueDays > 0 ? (totalCount / uniqueDays).toFixed(1) : 0;
+
+      document.getElementById('totalCount').textContent = totalCount;
+      document.getElementById('totalDays').textContent = uniqueDays;
+      document.getElementById('avgPerDay').textContent = avgPerDay;
+
+      // 更新年级计数
+      const gradeCounts = { '初中': 0, '高中': 0 };
+      entries.forEach(e => {
+        gradeCounts[e.grade] = (gradeCounts[e.grade] || 0) + e.count;
+      });
+      
+      document.getElementById('count-初中').textContent = `${gradeCounts['初中']} 条`;
+      document.getElementById('count-高中').textContent = `${gradeCounts['高中']} 条`;
+      document.getElementById('totalGradeCount').textContent = entries.length;
+    }
+
+    function clearAll() {
+      if (confirm('确定要清空所有数据吗？')) {
+        entries = [];
+        renderList();
+        updateSummary();
+      }
+    }
+
+    function exportData() {
+      if (entries.length === 0) {
+        alert('没有数据可导出');
+        return;
+      }
+
+      const csv = [
+        ['日期', '年级', '学科', '数量'],
+        ...entries.map(e => [e.date, e.grade, e.subject, e.count])
+      ].map(row => row.join(',')).join('\n');
+
+      const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `排班统计_${new Date().toISOString().split('T')[0]}.csv`;
+      link.click();
+    }
+
+    // 初始化
+    document.getElementById('manualDate').valueAsDate = new Date();
+    document.getElementById('ocrDate').value = new Date().toISOString().split('T')[0];
+    renderOutsourceList();
+    renderList();
+    updateSummary();
+  </script>
+</body>
+</html>

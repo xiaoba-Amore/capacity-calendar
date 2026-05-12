@@ -1,0 +1,1173 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>排班日历统计</title>
+  <style>
+    :root {
+      --bg-primary: #1c1c1e;
+      --bg-secondary: #2c2c2e;
+      --bg-tertiary: #3a3a3c;
+      --bg-hover: #48484a;
+      --text-primary: #ffffff;
+      --text-secondary: #98989d;
+      --accent: #0a84ff;
+      --accent-hover: #409cff;
+      --border: #38383a;
+      --success: #30d158;
+      --warning: #ff9f0a;
+      --danger: #ff453a;
+      --radius: 8px;
+      --shadow: 0 4px 20px rgba(0,0,0,0.4);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'PingFang SC', sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+      overflow: hidden;
+    }
+
+    /* ===== 顶部导航 ===== */
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 24px;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg-secondary);
+    }
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+    .logo {
+      font-size: 18px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .nav-controls {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .nav-btn {
+      width: 32px;
+      height: 32px;
+      border: none;
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+      border-radius: var(--radius);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      transition: background 0.15s;
+    }
+    .nav-btn:hover { background: var(--bg-hover); }
+    .nav-title {
+      font-size: 20px;
+      font-weight: 600;
+      min-width: 140px;
+      text-align: center;
+    }
+    .view-switch {
+      display: flex;
+      background: var(--bg-tertiary);
+      border-radius: var(--radius);
+      padding: 2px;
+      gap: 2px;
+    }
+    .view-btn {
+      padding: 6px 16px;
+      border: none;
+      background: transparent;
+      color: var(--text-secondary);
+      font-size: 13px;
+      cursor: pointer;
+      border-radius: 6px;
+      transition: all 0.15s;
+    }
+    .view-btn.active {
+      background: var(--accent);
+      color: white;
+    }
+    .header-actions {
+      display: flex;
+      gap: 10px;
+    }
+    .btn {
+      padding: 8px 16px;
+      border: none;
+      border-radius: var(--radius);
+      font-size: 13px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s;
+    }
+    .btn-primary {
+      background: var(--accent);
+      color: white;
+    }
+    .btn-primary:hover { background: var(--accent-hover); }
+    .btn-secondary {
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+    }
+    .btn-secondary:hover { background: var(--bg-hover); }
+
+    /* ===== 主布局 ===== */
+    .main {
+      display: flex;
+      height: calc(100vh - 60px);
+    }
+
+    /* ===== 侧边栏 ===== */
+    .sidebar {
+      width: 280px;
+      border-right: 1px solid var(--border);
+      background: var(--bg-secondary);
+      display: flex;
+      flex-direction: column;
+    }
+    .sidebar-section {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+    }
+    .sidebar-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 12px;
+    }
+
+    /* 统计卡片 */
+    .stat-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .stat-card {
+      background: var(--bg-tertiary);
+      border-radius: var(--radius);
+      padding: 14px;
+      text-align: center;
+    }
+    .stat-value {
+      font-size: 26px;
+      font-weight: 700;
+      color: var(--accent);
+    }
+    .stat-label {
+      font-size: 11px;
+      color: var(--text-secondary);
+      margin-top: 4px;
+    }
+
+    /* 年级筛选 */
+    .filter-group {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .filter-btn {
+      flex: 1;
+      padding: 10px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text-secondary);
+      border-radius: var(--radius);
+      cursor: pointer;
+      font-size: 13px;
+      transition: all 0.15s;
+    }
+    .filter-btn.active {
+      border-color: var(--accent);
+      background: rgba(10, 132, 255, 0.1);
+      color: var(--accent);
+    }
+
+    /* 外包人员 */
+    .person-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .person-tag {
+      padding: 4px 10px;
+      background: var(--bg-tertiary);
+      border-radius: 100px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.15s;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .person-tag:hover { background: var(--bg-hover); }
+    .person-tag.active {
+      background: var(--accent);
+      color: white;
+    }
+    .person-tag .del {
+      width: 14px; height: 14px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.2);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 10px;
+      cursor: pointer;
+    }
+    .add-person {
+      display: flex;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .add-person input {
+      flex: 1;
+      padding: 8px 12px;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text-primary);
+      font-size: 13px;
+    }
+    .add-person input:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    /* ===== 日历区域 ===== */
+    .calendar-container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* 星期标题 */
+    .weekdays {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      border-bottom: 1px solid var(--border);
+      background: var(--bg-secondary);
+    }
+    .weekday {
+      padding: 12px;
+      text-align: center;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+    }
+    .weekday.weekend { color: var(--danger); }
+
+    /* 月视图网格 */
+    .month-grid {
+      flex: 1;
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      grid-template-rows: repeat(6, 1fr);
+      overflow-y: auto;
+    }
+    .day-cell {
+      border-right: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      padding: 8px;
+      min-height: 100px;
+      cursor: pointer;
+      transition: background 0.15s;
+      position: relative;
+    }
+    .day-cell:hover { background: var(--bg-hover); }
+    .day-cell.other-month { opacity: 0.3; }
+    .day-cell.today {
+      background: rgba(10, 132, 255, 0.1);
+    }
+    .day-cell.today .day-number {
+      background: var(--accent);
+      color: white;
+    }
+    .day-cell.selected {
+      box-shadow: inset 0 0 0 2px var(--accent);
+    }
+
+    .day-number {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      font-weight: 500;
+      margin-bottom: 6px;
+    }
+
+    .day-content {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .day-badge {
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .badge-count { font-weight: 700; }
+    .badge-junior { background: rgba(48, 209, 88, 0.2); color: var(--success); }
+    .badge-senior { background: rgba(10, 132, 255, 0.2); color: var(--accent); }
+    .badge-total { background: rgba(255, 159, 10, 0.2); color: var(--warning); }
+
+    /* 周视图 */
+    .week-view {
+      flex: 1;
+      display: none;
+      flex-direction: column;
+      overflow-y: auto;
+    }
+    .week-view.active { display: flex; }
+    .week-row {
+      display: grid;
+      grid-template-columns: 60px repeat(7, 1fr);
+      border-bottom: 1px solid var(--border);
+      min-height: 80px;
+    }
+    .week-time {
+      padding: 12px;
+      border-right: 1px solid var(--border);
+      font-size: 12px;
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .week-day {
+      padding: 8px;
+      border-right: 1px solid var(--border);
+      cursor: pointer;
+    }
+    .week-day:hover { background: var(--bg-hover); }
+
+    /* ===== 详情面板 ===== */
+    .detail-panel {
+      position: fixed;
+      right: -400px;
+      top: 60px;
+      width: 400px;
+      height: calc(100vh - 60px);
+      background: var(--bg-secondary);
+      border-left: 1px solid var(--border);
+      box-shadow: var(--shadow);
+      transition: right 0.3s ease;
+      z-index: 100;
+      display: flex;
+      flex-direction: column;
+    }
+    .detail-panel.open { right: 0; }
+    .detail-header {
+      padding: 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .detail-title {
+      font-size: 18px;
+      font-weight: 600;
+    }
+    .detail-subtitle {
+      font-size: 13px;
+      color: var(--text-secondary);
+      margin-top: 4px;
+    }
+    .detail-close {
+      width: 32px; height: 32px;
+      border: none;
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+      border-radius: 50%;
+      cursor: pointer;
+      font-size: 18px;
+    }
+    .detail-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px;
+    }
+
+    /* 录入表单 */
+    .entry-form {
+      background: var(--bg-tertiary);
+      border-radius: var(--radius);
+      padding: 16px;
+      margin-bottom: 20px;
+    }
+    .form-group {
+      margin-bottom: 14px;
+    }
+    .form-group:last-child { margin-bottom: 0; }
+    .form-label {
+      display: block;
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-bottom: 6px;
+    }
+    .form-input, .form-select {
+      width: 100%;
+      padding: 10px 12px;
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text-primary);
+      font-size: 14px;
+    }
+    .form-input:focus, .form-select:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    /* 条目列表 */
+    .entry-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .entry-item {
+      background: var(--bg-tertiary);
+      border-radius: var(--radius);
+      padding: 12px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .entry-info {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .entry-grade {
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+    .entry-person {
+      font-size: 13px;
+      font-weight: 500;
+    }
+    .entry-count {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--accent);
+    }
+    .entry-delete {
+      color: var(--text-secondary);
+      cursor: pointer;
+      padding: 4px;
+    }
+    .entry-delete:hover { color: var(--danger); }
+
+    /* 汇总信息 */
+    .day-summary {
+      background: var(--bg-tertiary);
+      border-radius: var(--radius);
+      padding: 16px;
+      margin-top: 20px;
+    }
+    .summary-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .summary-row:last-child { border-bottom: none; }
+    .summary-key { color: var(--text-secondary); font-size: 13px; }
+    .summary-val { font-weight: 600; font-size: 14px; }
+
+    /* 截图粘贴区域 */
+    .paste-area {
+      border: 2px dashed var(--border);
+      border-radius: var(--radius);
+      padding: 30px;
+      text-align: center;
+      margin-bottom: 16px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .paste-area:hover, .paste-area.active {
+      border-color: var(--accent);
+      background: rgba(10, 132, 255, 0.05);
+    }
+    .paste-icon { font-size: 32px; margin-bottom: 8px; }
+    .paste-text { font-size: 13px; color: var(--text-secondary); }
+
+    /* 截图预览 */
+    .screenshot-preview {
+      max-width: 100%;
+      border-radius: var(--radius);
+      margin-bottom: 16px;
+      border: 1px solid var(--border);
+    }
+
+    /* 空状态 */
+    .empty-state {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--text-secondary);
+    }
+    .empty-icon { font-size: 48px; margin-bottom: 12px; opacity: 0.5; }
+
+    /* 响应式 */
+    @media (max-width: 900px) {
+      .sidebar { width: 240px; }
+      .detail-panel { width: 100%; right: -100%; }
+    }
+  </style>
+</head>
+<body>
+  <!-- 顶部导航 -->
+  <header class="header">
+    <div class="header-left">
+      <div class="logo">📅 排班日历</div>
+      <div class="nav-controls">
+        <button class="nav-btn" onclick="prevPeriod()">‹</button>
+        <span class="nav-title" id="navTitle">2026年4月</span>
+        <button class="nav-btn" onclick="nextPeriod()">›</button>
+      </div>
+      <div class="view-switch">
+        <button class="view-btn" data-view="day" onclick="switchView('day')">日</button>
+        <button class="view-btn" data-view="week" onclick="switchView('week')">周</button>
+        <button class="view-btn active" data-view="month" onclick="switchView('month')">月</button>
+      </div>
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-secondary" onclick="goToday()">今天</button>
+      <button class="btn btn-primary" onclick="exportData()">📥 导出</button>
+    </div>
+  </header>
+
+  <!-- 主布局 -->
+  <div class="main">
+    <!-- 侧边栏 -->
+    <aside class="sidebar">
+      <!-- 统计 -->
+      <div class="sidebar-section">
+        <div class="sidebar-title">本月统计</div>
+        <div class="stat-grid">
+          <div class="stat-card">
+            <div class="stat-value" id="statTotal">0</div>
+            <div class="stat-label">总排班</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="statDays">0</div>
+            <div class="stat-label">排班天数</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="statJunior">0</div>
+            <div class="stat-label">初中</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="statSenior">0</div>
+            <div class="stat-label">高中</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 年级筛选 -->
+      <div class="sidebar-section">
+        <div class="sidebar-title">年级筛选</div>
+        <div class="filter-group">
+          <button class="filter-btn active" data-grade="all" onclick="filterGrade('all')">全部</button>
+          <button class="filter-btn" data-grade="初中" onclick="filterGrade('初中')">初中</button>
+          <button class="filter-btn" data-grade="高中" onclick="filterGrade('高中')">高中</button>
+        </div>
+      </div>
+
+      <!-- 外包人员 -->
+      <div class="sidebar-section">
+        <div class="sidebar-title">外包人员</div>
+        <div class="person-list" id="personList">
+          <!-- 动态生成 -->
+        </div>
+        <div class="add-person">
+          <input type="text" id="newPersonName" placeholder="输入姓名">
+          <button class="btn btn-primary" style="padding:8px 12px;" onclick="addPerson()">+</button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- 日历区域 -->
+    <div class="calendar-container">
+      <!-- 星期标题 -->
+      <div class="weekdays">
+        <div class="weekday">周日</div>
+        <div class="weekday">周一</div>
+        <div class="weekday">周二</div>
+        <div class="weekday">周三</div>
+        <div class="weekday">周四</div>
+        <div class="weekday">周五</div>
+        <div class="weekday weekend">周六</div>
+      </div>
+
+      <!-- 月视图 -->
+      <div class="month-grid" id="monthGrid"></div>
+
+      <!-- 周视图 -->
+      <div class="week-view" id="weekView"></div>
+    </div>
+  </div>
+
+  <!-- 详情面板 -->
+  <aside class="detail-panel" id="detailPanel">
+    <div class="detail-header">
+      <div>
+        <div class="detail-title" id="detailTitle">4月20日</div>
+        <div class="detail-subtitle" id="detailSubtitle">周一 · 第17周</div>
+      </div>
+      <button class="detail-close" onclick="closeDetail()">×</button>
+    </div>
+    <div class="detail-body">
+      <!-- 截图粘贴区域 -->
+      <div class="paste-area" id="pasteArea" tabindex="0">
+        <div class="paste-icon">📋</div>
+        <div class="paste-text">点击此处，然后按 Ctrl+V 粘贴截图<br>或拖拽图片到此处</div>
+      </div>
+      <div id="screenshotPreview"></div>
+
+      <!-- 录入表单 -->
+      <div class="entry-form">
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">年级</label>
+            <select class="form-select" id="entryGrade">
+              <option value="初中">初中</option>
+              <option value="高中">高中</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">数量</label>
+            <input type="number" class="form-input" id="entryCount" min="1" placeholder="班级数">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">外包人员</label>
+          <select class="form-select" id="entryPerson">
+            <option value="">选择人员</option>
+          </select>
+        </div>
+        <button class="btn btn-primary" style="width:100%;" onclick="addEntry()">添加记录</button>
+      </div>
+
+      <!-- 当日条目 -->
+      <div class="sidebar-title">当日记录</div>
+      <div class="entry-list" id="entryList">
+        <div class="empty-state">
+          <div class="empty-icon">📝</div>
+          <div>暂无记录</div>
+        </div>
+      </div>
+
+      <!-- 当日汇总 -->
+      <div class="day-summary" id="daySummary" style="display:none;">
+        <div class="summary-row">
+          <span class="summary-key">初中</span>
+          <span class="summary-val" id="summaryJunior">0</span>
+        </div>
+        <div class="summary-row">
+          <span class="summary-key">高中</span>
+          <span class="summary-val" id="summarySenior">0</span>
+        </div>
+        <div class="summary-row">
+          <span class="summary-key">总计</span>
+          <span class="summary-val" id="summaryTotal">0</span>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <script>
+    // ===== 数据存储 =====
+    let entries = JSON.parse(localStorage.getItem('scheduleEntries') || '[]');
+    let persons = JSON.parse(localStorage.getItem('schedulePersons') || '["张三","李四","王五"]');
+    let currentDate = new Date();
+    let currentView = 'month';
+    let selectedDate = null;
+    let currentFilter = 'all';
+
+    // ===== 初始化 =====
+    function init() {
+      renderCalendar();
+      updateStats();
+      renderPersonList();
+      updatePersonSelect();
+      setupPasteArea();
+    }
+
+    // ===== 日历渲染 =====
+    function renderCalendar() {
+      const year = currentDate.getFullYear();
+      const month = currentDate.getMonth();
+      
+      document.getElementById('navTitle').textContent = 
+        currentView === 'day' 
+          ? `${year}年${month + 1}月${currentDate.getDate()}日`
+          : `${year}年${month + 1}月`;
+
+      if (currentView === 'month') {
+        renderMonthView(year, month);
+      } else if (currentView === 'week') {
+        renderWeekView();
+      }
+    }
+
+    function renderMonthView(year, month) {
+      const grid = document.getElementById('monthGrid');
+      grid.style.display = 'grid';
+      document.getElementById('weekView').classList.remove('active');
+
+      const firstDay = new Date(year, month, 1).getDay();
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+      const daysInPrev = new Date(year, month, 0).getDate();
+
+      let html = '';
+      
+      // 上月日期
+      for (let i = firstDay - 1; i >= 0; i--) {
+        const day = daysInPrev - i;
+        html += createDayCell(day, true);
+      }
+
+      // 当月日期
+      const today = new Date();
+      for (let day = 1; day <= daysInMonth; day++) {
+        const isToday = year === today.getFullYear() && 
+                       month === today.getMonth() && 
+                       day === today.getDate();
+        const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        const isSelected = selectedDate === dateStr;
+        html += createDayCell(day, false, isToday, isSelected, dateStr);
+      }
+
+      // 下月日期
+      const totalCells = 42;
+      const filled = firstDay + daysInMonth;
+      for (let day = 1; filled + day <= totalCells; day++) {
+        html += createDayCell(day, true);
+      }
+
+      grid.innerHTML = html;
+    }
+
+    function createDayCell(day, isOtherMonth, isToday, isSelected, dateStr) {
+      let juniorCount = 0, seniorCount = 0;
+      
+      if (!isOtherMonth && dateStr) {
+        const dayEntries = entries.filter(e => e.date === dateStr);
+        juniorCount = dayEntries.filter(e => e.grade === '初中').reduce((s, e) => s + e.count, 0);
+        seniorCount = dayEntries.filter(e => e.grade === '高中').reduce((s, e) => s + e.count, 0);
+      }
+
+      const total = juniorCount + seniorCount;
+      const hasData = total > 0;
+
+      // 根据筛选条件决定是否显示
+      let showJunior = currentFilter === 'all' || currentFilter === '初中';
+      let showSenior = currentFilter === 'all' || currentFilter === '高中';
+
+      return `
+        <div class="day-cell ${isOtherMonth ? 'other-month' : ''} ${isToday ? 'today' : ''} ${isSelected ? 'selected' : ''}"
+             onclick="selectDate('${dateStr || ''}', ${day}, ${isOtherMonth})">
+          <div class="day-number">${day}</div>
+          ${hasData ? `
+            <div class="day-content">
+              ${showJunior && juniorCount > 0 ? `
+                <div class="day-badge badge-junior">
+                  <span>初中</span>
+                  <span class="badge-count">${juniorCount}</span>
+                </div>
+              ` : ''}
+              ${showSenior && seniorCount > 0 ? `
+                <div class="day-badge badge-senior">
+                  <span>高中</span>
+                  <span class="badge-count">${seniorCount}</span>
+                </div>
+              ` : ''}
+            </div>
+          ` : ''}
+        </div>
+      `;
+    }
+
+    function renderWeekView() {
+      const grid = document.getElementById('monthGrid');
+      grid.style.display = 'none';
+      document.getElementById('weekView').classList.add('active');
+      
+      // 简化的周视图实现
+      const weekView = document.getElementById('weekView');
+      let html = '';
+      
+      // 获取当前周的起始日
+      const startOfWeek = new Date(currentDate);
+      startOfWeek.setDate(currentDate.getDate() - currentDate.getDay());
+      
+      for (let hour = 8; hour <= 22; hour++) {
+        html += `<div class="week-row">`;
+        html += `<div class="week-time">${hour}:00</div>`;
+        
+        for (let day = 0; day < 7; day++) {
+          const date = new Date(startOfWeek);
+          date.setDate(startOfWeek.getDate() + day);
+          const dateStr = date.toISOString().split('T')[0];
+          html += `<div class="week-day" onclick="selectDate('${dateStr}', ${date.getDate()})"></div>`;
+        }
+        
+        html += `</div>`;
+      }
+      
+      weekView.innerHTML = html;
+    }
+
+    // ===== 日期选择 =====
+    function selectDate(dateStr, day, isOtherMonth) {
+      if (isOtherMonth) return;
+      if (!dateStr) return;
+      
+      selectedDate = dateStr;
+      renderCalendar();
+      openDetail(dateStr, day);
+    }
+
+    function openDetail(dateStr, day) {
+      const date = new Date(dateStr);
+      const weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+      
+      document.getElementById('detailTitle').textContent = `${date.getMonth() + 1}月${day}日`;
+      document.getElementById('detailSubtitle').textContent = 
+        `${weekdays[date.getDay()]} · 第${getWeekNumber(date)}周`;
+      
+      document.getElementById('detailPanel').classList.add('open');
+      
+      // 清空截图预览
+      document.getElementById('screenshotPreview').innerHTML = '';
+      
+      renderEntryList();
+      updateDaySummary();
+    }
+
+    function closeDetail() {
+      document.getElementById('detailPanel').classList.remove('open');
+      selectedDate = null;
+      renderCalendar();
+    }
+
+    function getWeekNumber(date) {
+      const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+      const dayNum = d.getUTCDay() || 7;
+      d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+      const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+      return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+    }
+
+    // ===== 截图粘贴 =====
+    function setupPasteArea() {
+      const pasteArea = document.getElementById('pasteArea');
+      
+      pasteArea.addEventListener('click', () => {
+        pasteArea.focus();
+      });
+      
+      pasteArea.addEventListener('paste', (e) => {
+        e.preventDefault();
+        const items = e.clipboardData.items;
+        
+        for (let item of items) {
+          if (item.type.indexOf('image') !== -1) {
+            const blob = item.getAsFile();
+            const reader = new FileReader();
+            reader.onload = (event) => {
+              document.getElementById('screenshotPreview').innerHTML = 
+                `<img src="${event.target.result}" class="screenshot-preview">`;
+            };
+            reader.readAsDataURL(blob);
+            break;
+          }
+        }
+      });
+      
+      pasteArea.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        pasteArea.classList.add('active');
+      });
+      
+      pasteArea.addEventListener('dragleave', () => {
+        pasteArea.classList.remove('active');
+      });
+      
+      pasteArea.addEventListener('drop', (e) => {
+        e.preventDefault();
+        pasteArea.classList.remove('active');
+        
+        const files = e.dataTransfer.files;
+        if (files.length > 0 && files[0].type.startsWith('image/')) {
+          const reader = new FileReader();
+          reader.onload = (event) => {
+            document.getElementById('screenshotPreview').innerHTML = 
+              `<img src="${event.target.result}" class="screenshot-preview">`;
+          };
+          reader.readAsDataURL(files[0]);
+        }
+      });
+    }
+
+    // ===== 数据录入 =====
+    function addEntry() {
+      if (!selectedDate) return;
+      
+      const grade = document.getElementById('entryGrade').value;
+      const count = parseInt(document.getElementById('entryCount').value) || 0;
+      const person = document.getElementById('entryPerson').value;
+      
+      if (count <= 0) {
+        alert('请输入有效的数量');
+        return;
+      }
+      
+      entries.push({
+        id: Date.now(),
+        date: selectedDate,
+        grade,
+        count,
+        person
+      });
+      
+      localStorage.setItem('scheduleEntries', JSON.stringify(entries));
+      
+      // 清空输入
+      document.getElementById('entryCount').value = '';
+      
+      renderEntryList();
+      updateDaySummary();
+      renderCalendar();
+      updateStats();
+    }
+
+    function renderEntryList() {
+      const container = document.getElementById('entryList');
+      const dayEntries = entries.filter(e => e.date === selectedDate);
+      
+      if (dayEntries.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-icon">📝</div>
+            <div>暂无记录</div>
+          </div>
+        `;
+        return;
+      }
+      
+      container.innerHTML = dayEntries.map(entry => `
+        <div class="entry-item">
+          <div class="entry-info">
+            <span class="entry-grade">${entry.grade}</span>
+            <span class="entry-person">${entry.person || '未分配'}</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;">
+            <span class="entry-count">${entry.count}</span>
+            <span class="entry-delete" onclick="deleteEntry(${entry.id})">🗑️</span>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function deleteEntry(id) {
+      entries = entries.filter(e => e.id !== id);
+      localStorage.setItem('scheduleEntries', JSON.stringify(entries));
+      renderEntryList();
+      updateDaySummary();
+      renderCalendar();
+      updateStats();
+    }
+
+    function updateDaySummary() {
+      const dayEntries = entries.filter(e => e.date === selectedDate);
+      const junior = dayEntries.filter(e => e.grade === '初中').reduce((s, e) => s + e.count, 0);
+      const senior = dayEntries.filter(e => e.grade === '高中').reduce((s, e) => s + e.count, 0);
+      
+      if (dayEntries.length === 0) {
+        document.getElementById('daySummary').style.display = 'none';
+        return;
+      }
+      
+      document.getElementById('daySummary').style.display = 'block';
+      document.getElementById('summaryJunior').textContent = junior;
+      document.getElementById('summarySenior').textContent = senior;
+      document.getElementById('summaryTotal').textContent = junior + senior;
+    }
+
+    // ===== 人员管理 =====
+    function renderPersonList() {
+      const container = document.getElementById('personList');
+      container.innerHTML = persons.map((name, i) => `
+        <span class="person-tag" onclick="togglePersonFilter('${name}')">
+          ${name}
+          <span class="del" onclick="event.stopPropagation();removePerson(${i})">×</span>
+        </span>
+      `).join('');
+    }
+
+    function updatePersonSelect() {
+      const select = document.getElementById('entryPerson');
+      select.innerHTML = '<option value="">选择人员</option>' + 
+        persons.map(name => `<option value="${name}">${name}</option>`).join('');
+    }
+
+    function addPerson() {
+      const input = document.getElementById('newPersonName');
+      const name = input.value.trim();
+      
+      if (!name) return;
+      if (persons.includes(name)) {
+        alert('该人员已存在');
+        return;
+      }
+      
+      persons.push(name);
+      localStorage.setItem('schedulePersons', JSON.stringify(persons));
+      
+      input.value = '';
+      renderPersonList();
+      updatePersonSelect();
+    }
+
+    function removePerson(index) {
+      persons.splice(index, 1);
+      localStorage.setItem('schedulePersons', JSON.stringify(persons));
+      renderPersonList();
+      updatePersonSelect();
+    }
+
+    function togglePersonFilter(name) {
+      // 可以扩展为按人员筛选功能
+      console.log('Filter by:', name);
+    }
+
+    // ===== 筛选 =====
+    function filterGrade(grade) {
+      currentFilter = grade;
+      
+      document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.grade === grade);
+      });
+      
+      renderCalendar();
+    }
+
+    // ===== 统计 =====
+    function updateStats() {
+      const year = currentDate.getFullYear();
+      const month = currentDate.getMonth();
+      
+      const monthEntries = entries.filter(e => {
+        const d = new Date(e.date);
+        return d.getFullYear() === year && d.getMonth() === month;
+      });
+      
+      const total = monthEntries.reduce((s, e) => s + e.count, 0);
+      const days = new Set(monthEntries.map(e => e.date)).size;
+      const junior = monthEntries.filter(e => e.grade === '初中').reduce((s, e) => s + e.count, 0);
+      const senior = monthEntries.filter(e => e.grade === '高中').reduce((s, e) => s + e.count, 0);
+      
+      document.getElementById('statTotal').textContent = total;
+      document.getElementById('statDays').textContent = days;
+      document.getElementById('statJunior').textContent = junior;
+      document.getElementById('statSenior').textContent = senior;
+    }
+
+    // ===== 导航 =====
+    function prevPeriod() {
+      if (currentView === 'month') {
+        currentDate.setMonth(currentDate.getMonth() - 1);
+      } else if (currentView === 'week') {
+        currentDate.setDate(currentDate.getDate() - 7);
+      } else {
+        currentDate.setDate(currentDate.getDate() - 1);
+      }
+      renderCalendar();
+      updateStats();
+    }
+
+    function nextPeriod() {
+      if (currentView === 'month') {
+        currentDate.setMonth(currentDate.getMonth() + 1);
+      } else if (currentView === 'week') {
+        currentDate.setDate(currentDate.getDate() + 7);
+      } else {
+        currentDate.setDate(currentDate.getDate() + 1);
+      }
+      renderCalendar();
+      updateStats();
+    }
+
+    function goToday() {
+      currentDate = new Date();
+      renderCalendar();
+      updateStats();
+    }
+
+    function switchView(view) {
+      currentView = view;
+      
+      document.querySelectorAll('.view-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.view === view);
+      });
+      
+      renderCalendar();
+    }
+
+    // ===== 导出 =====
+    function exportData() {
+      if (entries.length === 0) {
+        alert('没有数据可导出');
+        return;
+      }
+      
+      const csv = [
+        ['日期', '年级', '数量', '外包人员'],
+        ...entries.map(e => [e.date, e.grade, e.count, e.person || ''])
+      ].map(row => row.join(',')).join('\n');
+      
+      const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `排班统计_${new Date().toISOString().split('T')[0]}.csv`;
+      link.click();
+    }
+
+    // 回车添加人员
+    document.getElementById('newPersonName').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') addPerson();
+    });
+
+    // 启动
+    init();
+  </script>
+</body>
+</html>

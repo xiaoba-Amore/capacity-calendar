@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>清空本地数据</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:100vh; margin:0; background:#f8fafc; }
+  .card { background:#fff; border-radius:16px; padding:40px; box-shadow:0 4px 20px rgba(0,0,0,.08); max-width:400px; width:90%; text-align:center; }
+  h1 { font-size:20px; margin:0 0 12px; color:#1e293b; }
+  p { color:#64748b; font-size:14px; margin:0 0 24px; }
+  .btn { padding:12px 32px; border:none; border-radius:8px; font-size:15px; cursor:pointer; transition:.2s; }
+  .btn-danger { background:#dc2626; color:#fff; }
+  .btn-danger:hover { background:#b91c1c; }
+  .btn:disabled { opacity:.5; cursor:not-allowed; }
+  .log { margin-top:20px; font-size:13px; text-align:left; background:#f1f5f9; border-radius:8px; padding:12px; color:#334155; line-height:1.6; }
+  .done { color:#16a34a; font-weight:600; }
+  .error { color:#dc2626; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>🗑️ 清空排课日历本地数据</h1>
+  <p>这会清空你当前浏览器里的所有排课数据<br>（IndexedDB + localStorage + 备份）</p>
+  <button class="btn btn-danger" id="btn" onclick="doClear()">一键清空</button>
+  <div class="log" id="log"></div>
+</div>
+
+<script>
+function log(msg, cls) {
+  const el = document.getElementById('log');
+  el.innerHTML += (cls ? '<span class="'+cls+'">' : '') + msg + (cls ? '</span>' : '') + '<br>';
+}
+
+async function doClear() {
+  const btn = document.getElementById('btn');
+  btn.disabled = true; btn.textContent = '清空中...';
+  document.getElementById('log').innerHTML = '';
+
+  // 1. 清空 IndexedDB
+  try {
+    const req = indexedDB.open('scheduleCalendarDB', 1);
+    const db = await new Promise((res, rej) => {
+      req.onsuccess = () => res(req.result);
+      req.onerror = () => rej(req.error);
+    });
+    const tx = db.transaction('store', 'readwrite');
+    const store = tx.objectStore('store');
+    await new Promise((res, rej) => {
+      const del = store.delete('scheduleEntries_v2');
+      del.onsuccess = () => res();
+      del.onerror = () => rej(del.error);
+    });
+    log('✅ IndexedDB 已清空');
+  } catch(e) {
+    log('⚠️ IndexedDB 清空失败（可能本来就空）: ' + e.message);
+  }
+
+  // 2. 清空 localStorage
+  const keys = ['scheduleEntries_v2', 'scheduleEntries_v2_backup_1', 'scheduleEntries_v2_backup_2', 'scheduleEntries', 'scheduleCalendar_entries'];
+  let cleared = 0;
+  for (const k of keys) {
+    if (localStorage.getItem(k)) { localStorage.removeItem(k); cleared++; log('✅ localStorage 已删除: ' + k); }
+  }
+  if (cleared === 0) log('ℹ️ localStorage 无相关数据');
+
+  // 3. 清空 Cookie 相关（如果有）
+  log('✅ 清理完成！');
+  log('');
+  log('请关闭此页面，然后重新打开排课日历。', 'done');
+  log('（重新打开后会显示空白日历）', 'done');
+
+  btn.textContent = '已完成';
+}
+</script>
+</body>
+</html>
