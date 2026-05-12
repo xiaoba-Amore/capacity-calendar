@@ -1218,7 +1218,7 @@ function loadEntriesLocal() {
 
 const SUPABASE_URL = 'https://gxfunttltymrgodjntzx.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBiYW';
-const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // 全局加载状态
 let _dbReady = true;  // Supabase anon 客户端默认可用，无需登录
@@ -1234,7 +1234,7 @@ async function dbLoadEntries() {
   try {
     // 5 秒超时保护，防止请求挂死
     const { data, error } = await Promise.race([
-      supabase.from('schedule_entries').select('*'),
+      supabaseClient.from('schedule_entries').select('*'),
       new Promise((_, reject) => setTimeout(() => reject(new Error('查询超时')), 5000))
     ]);
     if (error) throw error;
@@ -1262,7 +1262,7 @@ async function dbAddEntry(entry) {
   try {
     const { id, ...data } = entry;
     const { data: result, error } = await Promise.race([
-      supabase.from('schedule_entries').insert([data]).select(),
+      supabaseClient.from('schedule_entries').insert([data]).select(),
       new Promise((_, reject) => setTimeout(() => reject(new Error('写入超时')), 5000))
     ]);
     if (error) throw error;
@@ -1284,7 +1284,7 @@ async function dbAddEntries(list) {
     });
     try {
       const { data: result, error } = await Promise.race([
-        supabase.from('schedule_entries').insert(batch).select(),
+        supabaseClient.from('schedule_entries').insert(batch).select(),
         new Promise((_, reject) => setTimeout(() => reject(new Error('批量写入超时')), 8000))
       ]);
       if (error) throw error;
@@ -1308,7 +1308,7 @@ async function dbAddEntries(list) {
 // 按 id 删除
 async function dbRemoveEntry(id) {
   const { error } = await Promise.race([
-    supabase.from('schedule_entries').delete().eq('id', id),
+    supabaseClient.from('schedule_entries').delete().eq('id', id),
     new Promise((_, reject) => setTimeout(() => reject(new Error('删除超时')), 5000))
   ]);
   if (error) throw error;
@@ -1319,7 +1319,7 @@ async function dbRemoveWhere(conditions) {
   const ids = conditions.map(e => e.id).filter(Boolean);
   for (const id of ids) {
     await Promise.race([
-      supabase.from('schedule_entries').delete().eq('id', id),
+      supabaseClient.from('schedule_entries').delete().eq('id', id),
       new Promise((_, reject) => setTimeout(() => reject(new Error('删除超时')), 5000))
     ]);
   }
@@ -1328,7 +1328,7 @@ async function dbRemoveWhere(conditions) {
 // 更新单条
 async function dbUpdateEntry(id, data) {
   const { error } = await Promise.race([
-    supabase.from('schedule_entries').update(data).eq('id', id),
+    supabaseClient.from('schedule_entries').update(data).eq('id', id),
     new Promise((_, reject) => setTimeout(() => reject(new Error('更新超时')), 5000))
   ]);
   if (error) throw error;
@@ -1448,7 +1448,7 @@ async function deduplicateEntries() {
       if (dup.id && _dbReady) {
         try {
           const { error } = await Promise.race([
-            supabase.from('schedule_entries').delete().eq('id', dup.id),
+            supabaseClient.from('schedule_entries').delete().eq('id', dup.id),
             new Promise((_, reject) => setTimeout(() => reject(new Error('删除超时')), 5000))
           ]);
           if (error) throw error;
@@ -1494,7 +1494,7 @@ async function pushLocalToCloud() {
     try {
       const { id, ...data } = entry;
       const { data: result, error } = await Promise.race([
-        supabase.from('schedule_entries').insert([data]).select(),
+        supabaseClient.from('schedule_entries').insert([data]).select(),
         new Promise((_, reject) => setTimeout(() => reject(new Error('推送超时')), 5000))
       ]);
       if (error) throw error;
@@ -3908,7 +3908,7 @@ function doConfirm() {
             batch.map(entry => {
               const { id, ...data } = entry;
               return Promise.race([
-                supabase.from('schedule_entries').insert([data]).select(),
+                supabaseClient.from('schedule_entries').insert([data]).select(),
                 new Promise((_, reject) => setTimeout(() => reject(new Error('迁移写入超时')), 5000))
               ]).then(res => ({ entry, res }));
             })
