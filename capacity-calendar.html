@@ -1351,45 +1351,55 @@ async function dbSyncFromCloud(force = false, silent = false) {
   _syncInFlight = true;
   console.log('[SYNC] 开始同步, 本地', entries.length, '条');
   try {
-    // 双向同步：先推本地新增到云端
+    // 1. 先推本地新增（无 id 的条目）到云端
     const pushed = await pushLocalToCloud();
     if (pushed > 0) console.log('[SYNC] 已推送', pushed, '条到云端');
 
+    // 2. 从云端拉取完整数据（以云端为准）
     const cloudData = await dbLoadEntries();
     console.log('[SYNC] 云端返回', cloudData.length, '条');
 
-    // 【防御1】若此前已同步过非零数据，云端突然返回空数组，大概率是网络抖动
+    // 3. 防御：云端突然返回空，可能是网络抖动
     if (_lastSyncCount > 0 && cloudData.length === 0) {
-      console.warn('[SYNC] 云端突然返回空数组（上次有', _lastSyncCount, '条），跳过本次同步，保留本地数据');
+      console.warn('[SYNC] 云端突然返回空数组（上次有', _lastSyncCount, '条），跳过本次同步');
       _syncInFlight = false;
       return;
     }
 
-    // 【安全策略】本地数据无条件保留，云端数据仅作补充
-    const localIds = new Set(entries.map(e => e.id).filter(Boolean));
-    const merged = [...entries]; // 先复制所有本地数据
-    let added = 0;
+    // 4. 以云端数据为基础，补充本地新增（无 id 且云端没有的）
+    const cloudIds = new Set(cloudData.map(e => e.id).filter(Boolean));
+    const merged = [...cloudData]; // 云端数据优先
+    let localAdded = 0;
 
-    for (const c of cloudData) {
-      if (c.id && !localIds.has(c.id)) {
-        merged.push(c);
-        added++;
-      } else if (!c.id) {
-        console.warn('[SYNC] 云端数据缺少 id:', c);
+    for (const local of entries) {
+      if (!local.id || !cloudIds.has(local.id)) {
+        // 本地有但云端没有，推送到云端
+        if (!local.id) {
+          try {
+            const { data, error } = await Promise.race([
+              supabaseClient.from('schedule_entries').insert([{
+                date: local.date, grade: local.grade, subject: local.subject,
+                count: local.count || 0, season: local.season || '暑',
+                designer: local.designer || '', subGrade: local.subGrade || '',
+                version: local.version || '', lesson: local.lesson || ''
+              }]).select(),
+              new Promise((_, reject) => setTimeout(() => reject(new Error('推送超时')), 5000))
+            ]);
+            if (error) throw error;
+            merged.push({...local, id: data[0].id});
+            localAdded++;
+            console.log('[SYNC] 本地新增已推云端:', local.subject, local.date);
+          } catch (e) {
+            console.error('[SYNC] 推送本地新增失败:', e.message || e);
+          }
+        }
       }
     }
 
-    console.log('[SYNC] 合并结果: 本地', entries.length, '条 + 云端新增', added, '条 = 共', merged.length, '条');
+    console.log('[SYNC] 合并结果: 云端', cloudData.length, '条 + 本地新增', localAdded, '条 = 共', merged.length, '条');
 
-    // 【防御2】合并后数据不应减少
-    if (merged.length < entries.length) {
-      console.error('[SYNC] ⚠️ 合并后数据减少，阻止覆盖！本地', entries.length, '→ 合并', merged.length);
-      _syncInFlight = false;
-      return;
-    }
-
-    // 只在数据实际变化时才更新 UI
-    if (merged.length > entries.length || force) {
+    // 5. 数据变化时才更新 UI
+    if (merged.length !== entries.length || force) {
       entries = merged;
       saveEntriesLocal();
       buildCalendar();
